@@ -1,0 +1,30 @@
+version: "{build}"
+environment:
+  matrix:
+    - job_name: Windows x64
+      appveyor_build_worker_image: Visual Studio 2019
+    - job_name: Linux x64
+      appveyor_build_worker_image: Ubuntu
+configuration:
+  - Release
+install:
+  - cmd: cmake -G "Visual Studio 16 2019" .
+  - sh: cmake -G Ninja -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=$CONFIGURATION .
+for:
+  - matrix:
+      only:
+        - job_name: Windows x64
+    build:
+      project: djson.sln
+      parallel: true
+      verbosity: minimal
+  - matrix:
+      only:
+        - job_name: Linux x64
+    build_script:
+      - sh: echo -e "== Building Linux $CONFIGURATION ==" && ninja -v || exit 1
+
+matrix:
+  fast_finish: true
+
+skip_branch_with_pr: true
