@@ -540,8 +540,7 @@ std::string serialise_value(base const& base)
 	{
 	case data_type::boolean:
 	{
-		auto p_bool = dynamic_cast<boolean const*>(&base);
-		if (p_bool)
+		if (auto p_bool = base.cast<boolean const>())
 		{
 			return p_bool->value ? "true" : "false";
 		}
@@ -549,8 +548,7 @@ std::string serialise_value(base const& base)
 	}
 	case data_type::integer:
 	{
-		auto p_int = dynamic_cast<integer const*>(&base);
-		if (p_int)
+		if (auto p_int = base.cast<integer const>())
 		{
 			return std::to_string(p_int->value);
 		}
@@ -558,8 +556,7 @@ std::string serialise_value(base const& base)
 	}
 	case data_type::floating:
 	{
-		auto p_float = dynamic_cast<floating const*>(&base);
-		if (p_float)
+		if (auto p_float = base.cast<floating const>())
 		{
 			return std::to_string(p_float->value);
 		}
@@ -567,8 +564,7 @@ std::string serialise_value(base const& base)
 	}
 	case data_type::string:
 	{
-		auto p_string = dynamic_cast<string const*>(&base);
-		if (p_string)
+		if (auto p_string = base.cast<string const>())
 		{
 			auto val = serialise_str(p_string->value);
 			std::string ret = "\"";
@@ -595,16 +591,14 @@ std::stringstream& serialise_entry(std::stringstream& out, std::uint8_t indent, 
 	}
 	else if (type == data_type::object)
 	{
-		auto p_object = dynamic_cast<object const*>(&entry);
-		if (p_object)
+		if (auto p_object = entry.cast<object const>())
 		{
 			p_object->serialise(out, sort_keys, pretty, indent + 1);
 		}
 	}
 	else if (type == data_type::array)
 	{
-		auto p_array = dynamic_cast<array const*>(&entry);
-		if (p_array)
+		if (auto p_array = entry.cast<array const>())
 		{
 			p_array->serialise(out, sort_keys, pretty, indent + 1);
 		}
