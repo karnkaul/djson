@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cinttypes>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <sstream>
@@ -33,13 +34,17 @@ constexpr inline std::array g_data_type_str = {"none", "boolean", "integer", "fl
 inline std::string_view g_newline = "\n";
 
 ///
-/// \brief Typedef for error logging callback
+/// \brief Default error logger
 ///
-using log_error = void (*)(std::string_view);
+inline void log_error(std::string_view str)
+{
+	std::cerr << str << "\n";
+};
+
 ///
-/// \brief Error logging callback (dumps to `std::cerr` by default)
+/// \brief Customisable error logging callback
 ///
-inline log_error g_log_error = nullptr;
+inline auto g_log_error = &log_error;
 
 ///
 /// \brief Abstract base class for all concrete types
@@ -62,6 +67,8 @@ struct base
 	T const* cast() const;
 };
 
+using base_ptr = std::unique_ptr<base>;
+
 ///
 /// \brief Tag for value types: boolean, integer, floating, string
 ///
@@ -75,8 +82,8 @@ struct container_type
 {
 };
 
-using field_map = std::unordered_map<std::string, std::unique_ptr<base>>;
-using field_array = std::vector<std::unique_ptr<base>>;
+using field_map = std::unordered_map<std::string, base_ptr>;
+using field_array = std::vector<base_ptr>;
 
 struct boolean : base, value_type
 {
@@ -120,7 +127,7 @@ struct string : base, value_type
 
 struct object : base, container_type
 {
-	field_map entries;
+	field_map fields;
 
 	data_type type() const override
 	{
@@ -154,7 +161,7 @@ struct object : base, container_type
 	/// \param id search key
 	///
 	template <typename T>
-	decltype(T::value) value(std::string const& id) const;
+	decltype(T::value) const& value(std::string const& id) const;
 
 	///
 	/// \brief Serialise fields into JSON string (adds escapes)
@@ -168,7 +175,7 @@ struct object : base, container_type
 
 struct array : base, container_type
 {
-	field_array entries;
+	field_array fields;
 	data_type held_type = data_type::none;
 
 	data_type type() const override
@@ -201,6 +208,19 @@ struct array : base, container_type
 	///
 	std::stringstream& serialise(std::stringstream& out, bool sort_keys = false, bool pretty = true, std::uint8_t indent = 0) const;
 };
+
+///
+/// \brief Deserialise a string into its appropriate type object
+///
+base_ptr deserialise(std::string_view text, std::uint8_t max_depth = 8);
+///
+/// \brief Cast a base instance into a desired type
+///
+template <typename T>
+T* cast(base_ptr& out_base)
+{
+	return out_base ? out_base->template cast<T>() : nullptr;
+}
 
 template <typename T>
 constexpr bool always_false = false;
@@ -313,7 +333,7 @@ template <typename T>
 T* object::find(std::string const& id) const
 {
 	static_assert(is_valid_type<T>, "T must derive from base!");
-	if (auto search = entries.find(id); search != entries.end())
+	if (auto search = fields.find(id); search != fields.end())
 	{
 		return search->second->template cast<T>();
 	}
@@ -321,7 +341,7 @@ T* object::find(std::string const& id) const
 }
 
 template <typename T>
-decltype(T::value) object::value(std::string const& id) const
+decltype(T::value) const& object::value(std::string const& id) const
 {
 	static_assert(is_value_type<T>, "T must be a value type!");
 	static T const default_t{};
@@ -338,7 +358,7 @@ bool array::for_each(F functor) const
 	static_assert(is_valid_type<T>, "T must derive from base!");
 	if (held_type == to_data_type<T>())
 	{
-		for (auto const& entry : entries)
+		for (auto const& entry : fields)
 		{
 			if (auto t_entry = entry->template cast<T>())
 			{
@@ -356,7 +376,7 @@ bool array::for_each_value(F functor) const
 	static_assert(is_value_type<T>, "T must be a value type!");
 	if (held_type == to_data_type<T>())
 	{
-		for (auto const& entry : entries)
+		for (auto const& entry : fields)
 		{
 			if (auto t_entry = entry->template cast<T>())
 			{

@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cstring>
-#include <iostream>
 #include <map>
 #include <dumb_json/dumb_json.hpp>
 
@@ -29,13 +28,12 @@ std::ostream& format(std::ostream& out, std::string_view fmt, Arg&& arg, Args&&.
 template <typename... Args>
 void log_err(std::string_view fmt, Args&&... args)
 {
-	if (!g_log_error)
+	if (g_log_error)
 	{
-		g_log_error = [](auto str) { std::cerr << str << "\n"; };
+		std::stringstream str;
+		format(str, fmt, std::forward<Args>(args)...);
+		g_log_error(str.str());
 	}
-	std::stringstream str;
-	format(str, fmt, std::forward<Args>(args)...);
-	g_log_error(str.str());
 }
 
 constexpr std::size_t g_bufSize = 128;
@@ -400,7 +398,7 @@ T to_numeric(std::string_view text)
 	return ret;
 }
 
-std::unique_ptr<base> create(data_type type, std::string_view value, std::uint64_t& out_line, std::int8_t max_depth)
+base_ptr create(data_type type, std::string_view value, std::uint64_t& out_line, std::int8_t max_depth)
 {
 	switch (type)
 	{
@@ -638,7 +636,7 @@ bool object::read(std::string_view text, std::int8_t max_depth, std::uint64_t* l
 			{
 				if (!key.empty())
 				{
-					entries[std::string(key)] = std::move(new_entry);
+					fields[std::string(key)] = std::move(new_entry);
 				}
 				else
 				{
@@ -659,7 +657,7 @@ base* object::add(std::string key, std::string_view value, data_type type, std::
 		log_err("[{}] Empty key!", g_name);
 		return nullptr;
 	}
-	if (entries.find(key) != entries.end())
+	if (fields.find(key) != fields.end())
 	{
 		log_err("[{}] Duplicate key [{}]!", g_name, key);
 		return nullptr;
@@ -674,7 +672,7 @@ base* object::add(std::string key, std::string_view value, data_type type, std::
 	if (auto new_entry = create(type, value, value_line, max_depth))
 	{
 		auto ret = new_entry.get();
-		entries[std::move(key)] = std::move(new_entry);
+		fields[std::move(key)] = std::move(new_entry);
 		return ret;
 	}
 	return nullptr;
@@ -682,7 +680,7 @@ base* object::add(std::string key, std::string_view value, data_type type, std::
 
 std::stringstream& object::serialise(std::stringstream& out, bool sort_keys, bool pretty, std::uint8_t indent) const
 {
-	if (!entries.empty())
+	if (!fields.empty())
 	{
 		indenter t{indent, pretty};
 		newliner n{pretty};
@@ -693,7 +691,7 @@ std::stringstream& object::serialise(std::stringstream& out, bool sort_keys, boo
 		if (sort_keys)
 		{
 			std::map<std::string, base const*> map;
-			for (auto const& [key, entry] : entries)
+			for (auto const& [key, entry] : fields)
 			{
 				map[serialise_str(key)] = entry.get();
 			}
@@ -704,20 +702,20 @@ std::stringstream& object::serialise(std::stringstream& out, bool sort_keys, boo
 					out << n;
 				}
 				out << t << '\"' << key << "\":" << s;
-				serialise_entry(out, indent, *p_entry, (index == entries.size() - 1), pretty, sort_keys);
+				serialise_entry(out, indent, *p_entry, (index == fields.size() - 1), pretty, sort_keys);
 				++index;
 			}
 		}
 		else
 		{
-			for (auto const& [key, entry] : entries)
+			for (auto const& [key, entry] : fields)
 			{
 				if (index > 0)
 				{
 					out << n;
 				}
 				out << t << '\"' << serialise_str(key) << "\":" << s;
-				serialise_entry(out, indent, *entry, (index == entries.size() - 1), pretty, sort_keys);
+				serialise_entry(out, indent, *entry, (index == fields.size() - 1), pretty, sort_keys);
 				++index;
 			}
 		}
@@ -757,7 +755,7 @@ bool array::read(std::string_view text, std::uint64_t* line)
 			}
 			if (auto new_entry = create(type, value, value_line, 8))
 			{
-				entries.push_back(std::move(new_entry));
+				fields.push_back(std::move(new_entry));
 			}
 			trim(start, *line);
 			if (!start.empty() && start.at(0) == ']')
@@ -771,21 +769,21 @@ bool array::read(std::string_view text, std::uint64_t* line)
 
 std::stringstream& array::serialise(std::stringstream& out, bool sort_keys, bool pretty, std::uint8_t indent) const
 {
-	if (!entries.empty())
+	if (!fields.empty())
 	{
 		indenter t{indent, pretty};
 		newliner n{pretty};
 		out << '[' << n;
 		++t.indent;
 		std::size_t index = 0;
-		for (auto const& entry : entries)
+		for (auto const& entry : fields)
 		{
 			if (index > 0)
 			{
 				out << n;
 			}
 			out << t;
-			serialise_entry(out, indent, *entry, (index == entries.size() - 1), pretty, sort_keys);
+			serialise_entry(out, indent, *entry, (index == fields.size() - 1), pretty, sort_keys);
 			++index;
 		}
 		--t.indent;
@@ -794,3 +792,10 @@ std::stringstream& array::serialise(std::stringstream& out, bool sort_keys, bool
 	return out;
 }
 } // namespace dj
+
+dj::base_ptr dj::deserialise(std::string_view text, std::uint8_t max_depth)
+{
+	std::uint64_t line = 1;
+	auto [value, type] = parse_value(text, line, line);
+	return create(type, value, line, max_depth);
+}
