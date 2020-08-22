@@ -162,6 +162,15 @@ struct object : base, container_type
 	///
 	template <typename T>
 	decltype(T::value) const& value(std::string const& id) const;
+	///
+	/// \brief Check if a key is present
+	///
+	bool contains(std::string const& id) const;
+	///
+	/// \brief Check if a key of type T is present
+	///
+	template <typename T>
+	bool contains(std::string const& id) const;
 
 	///
 	/// \brief Serialise fields into JSON string (adds escapes)
@@ -350,6 +359,12 @@ decltype(T::value) const& object::value(std::string const& id) const
 		return p_t->value;
 	}
 	return default_t.value;
+}
+
+template <typename T>
+bool object::contains(std::string const& id) const
+{
+	return find<T>(id) != nullptr;
 }
 
 template <typename T, typename F>

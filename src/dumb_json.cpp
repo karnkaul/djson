@@ -678,6 +678,11 @@ base* object::add(std::string key, std::string_view value, data_type type, std::
 	return nullptr;
 }
 
+bool object::contains(std::string const& id) const
+{
+	return fields.find(id) != fields.end();
+}
+
 std::stringstream& object::serialise(std::stringstream& out, bool sort_keys, bool pretty, std::uint8_t indent) const
 {
 	if (!fields.empty())
