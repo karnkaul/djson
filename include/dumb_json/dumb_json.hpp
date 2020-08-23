@@ -67,27 +67,25 @@ struct base
 	T const* cast() const;
 };
 
-using base_ptr = std::unique_ptr<base>;
-
-///
-/// \brief Tag for value types: boolean, integer, floating, string
-///
+namespace detail
+{
 struct value_type
 {
 };
-///
-/// \brief Tag for container types: object, array
-///
 struct container_type
 {
 };
+} // namespace detail
 
+using base_ptr = std::unique_ptr<base>;
 using field_map = std::unordered_map<std::string, base_ptr>;
 using field_array = std::vector<base_ptr>;
 
-struct boolean : base, value_type
+struct boolean : base, detail::value_type
 {
-	bool value = {};
+	using value_type = bool;
+
+	value_type value = {};
 
 	data_type type() const override
 	{
@@ -95,9 +93,11 @@ struct boolean : base, value_type
 	}
 };
 
-struct integer : base, value_type
+struct integer : base, detail::value_type
 {
-	std::int64_t value = {};
+	using value_type = std::int64_t;
+
+	value_type value = {};
 
 	data_type type() const override
 	{
@@ -105,9 +105,11 @@ struct integer : base, value_type
 	}
 };
 
-struct floating : base, value_type
+struct floating : base, detail::value_type
 {
-	double value = {};
+	using value_type = double;
+
+	value_type value = {};
 
 	data_type type() const override
 	{
@@ -115,9 +117,11 @@ struct floating : base, value_type
 	}
 };
 
-struct string : base, value_type
+struct string : base, detail::value_type
 {
-	std::string value;
+	using value_type = std::string;
+
+	value_type value;
 
 	data_type type() const override
 	{
@@ -125,7 +129,7 @@ struct string : base, value_type
 	}
 };
 
-struct object : base, container_type
+struct object : base, detail::container_type
 {
 	field_map fields;
 
@@ -161,7 +165,7 @@ struct object : base, container_type
 	/// \param id search key
 	///
 	template <typename T>
-	decltype(T::value) const& value(std::string const& id) const;
+	typename T::value_type const& value(std::string const& id) const;
 	///
 	/// \brief Check if a key is present
 	///
@@ -182,7 +186,7 @@ struct object : base, container_type
 	std::string serialise(bool sort_keys = false, bool pretty = true, std::uint8_t indent = 0) const;
 };
 
-struct array : base, container_type
+struct array : base, detail::container_type
 {
 	field_array fields;
 	data_type held_type = data_type::none;
@@ -231,6 +235,8 @@ T* cast(base_ptr& out_base)
 	return out_base ? out_base->template cast<T>() : nullptr;
 }
 
+namespace detail
+{
 template <typename T>
 constexpr bool always_false = false;
 
@@ -317,31 +323,32 @@ constexpr bool is_type_value_type(data_type type)
 {
 	return type == data_type::boolean || type == data_type::integer || type == data_type::floating || type == data_type::string;
 }
+} // namespace detail
 
 template <typename T>
 T* base::cast()
 {
-	static_assert(is_valid_type<T>, "T must derive from base!");
+	static_assert(detail::is_valid_type<T>, "T must derive from base!");
 	return dynamic_cast<T*>(this);
 }
 
 template <typename T>
 T const* base::cast() const
 {
-	static_assert(is_valid_type<T>, "T must derive from base!");
+	static_assert(detail::is_valid_type<T>, "T must derive from base!");
 	return dynamic_cast<T*>(this);
 }
 
 template <typename T>
 T* object::add(std::string key, std::string_view value, std::int8_t max_depth)
 {
-	return add(std::move(key), value, to_data_type<T>(), max_depth)->template cast<T>();
+	return add(std::move(key), value, detail::to_data_type<T>(), max_depth)->template cast<T>();
 }
 
 template <typename T>
 T* object::find(std::string const& id) const
 {
-	static_assert(is_valid_type<T>, "T must derive from base!");
+	static_assert(detail::is_valid_type<T>, "T must derive from base!");
 	if (auto search = fields.find(id); search != fields.end())
 	{
 		return search->second->template cast<T>();
@@ -350,9 +357,9 @@ T* object::find(std::string const& id) const
 }
 
 template <typename T>
-decltype(T::value) const& object::value(std::string const& id) const
+typename T::value_type const& object::value(std::string const& id) const
 {
-	static_assert(is_value_type<T>, "T must be a value type!");
+	static_assert(detail::is_value_type<T>, "T must be a value type!");
 	static T const default_t{};
 	if (auto p_t = find<T>(id))
 	{
@@ -370,8 +377,8 @@ bool object::contains(std::string const& id) const
 template <typename T, typename F>
 bool array::for_each(F functor) const
 {
-	static_assert(is_valid_type<T>, "T must derive from base!");
-	if (held_type == to_data_type<T>())
+	static_assert(detail::is_valid_type<T>, "T must derive from base!");
+	if (held_type == detail::to_data_type<T>())
 	{
 		for (auto const& entry : fields)
 		{
@@ -388,8 +395,8 @@ bool array::for_each(F functor) const
 template <typename T, typename F>
 bool array::for_each_value(F functor) const
 {
-	static_assert(is_value_type<T>, "T must be a value type!");
-	if (held_type == to_data_type<T>())
+	static_assert(detail::is_value_type<T>, "T must be a value type!");
+	if (held_type == detail::to_data_type<T>())
 	{
 		for (auto const& entry : fields)
 		{

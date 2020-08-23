@@ -583,7 +583,7 @@ std::string serialise_value(base const& base)
 std::stringstream& serialise_entry(std::stringstream& out, std::uint8_t indent, base const& entry, bool b_last, bool pretty, bool sort_keys)
 {
 	auto const type = entry.type();
-	if (is_type_value_type(type))
+	if (detail::is_type_value_type(type))
 	{
 		out << serialise_value(entry);
 	}
