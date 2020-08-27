@@ -10,6 +10,8 @@
 
 namespace dj
 {
+using namespace std::string_view_literals;
+
 ///
 /// \brief Enumeration of all supported concrete types
 ///
@@ -27,7 +29,7 @@ enum class data_type
 ///
 /// \brief enum-indexed array of string representations for data_type
 ///
-constexpr inline std::array g_data_type_str = {"none", "boolean", "integer", "floating", "string", "object", "array"};
+constexpr inline std::array g_data_type_str = {"none"sv, "boolean"sv, "integer"sv, "floating"sv, "string"sv, "object"sv, "array"sv};
 ///
 /// \brief String used for newlines during serialisation
 ///
