@@ -27,13 +27,36 @@ enum class data_type
 };
 
 ///
+/// \brief Serialisation options
+///
+struct serial_opts final
+{
+	///
+	/// \brief Set true to sort all keys (costs overhead)
+	///
+	bool sort_keys = false;
+	///
+	/// \brief Set false to collapse all whitespace
+	///
+	bool pretty = true;
+	///
+	/// \brief Set non-zero to use spaces instead of tabs
+	///
+	std::uint8_t space_indent = 0;
+	///
+	/// \brief String used for newlines
+	///
+	std::string_view newline = "\n";
+};
+
+///
 /// \brief enum-indexed array of string representations for data_type
 ///
 constexpr inline std::array g_data_type_str = {"none"sv, "boolean"sv, "integer"sv, "floating"sv, "string"sv, "object"sv, "array"sv};
 ///
-/// \brief String used for newlines during serialisation
+/// \brief Default serialisation options
 ///
-inline std::string_view g_newline = "\n";
+inline serial_opts g_serial_opts;
 
 ///
 /// \brief Default error logger
@@ -149,12 +172,16 @@ struct object : base, detail::container_type
 	///
 	/// \brief Add a custom field
 	///
-	base* add(std::string key, std::string_view value, data_type type, std::int8_t max_depth = 8);
+	base* add(std::string_view key, std::string_view value, data_type type, std::int8_t max_depth = 8);
 	///
 	/// \brief Add a custom field of type T
 	///
 	template <typename T>
-	T* add(std::string key, std::string_view value, std::int8_t max_depth = 8);
+	T* add(std::string_view key, std::string_view value, std::int8_t max_depth = 8);
+	///
+	/// \brief Add an existing entry (move the instance)
+	///
+	bool add(std::string_view key, base&& entry);
 
 	///
 	/// \brief Find a field of type T
@@ -181,11 +208,11 @@ struct object : base, detail::container_type
 	///
 	/// \brief Serialise fields into JSON string (adds escapes)
 	///
-	std::stringstream& serialise(std::stringstream& out, bool sort_keys, bool pretty, std::uint8_t indent) const;
+	std::stringstream& serialise(std::stringstream& out, serial_opts const& options = g_serial_opts, std::uint8_t indent = 0) const;
 	///
 	/// \brief Serialise fields into JSON string (adds escapes)
 	///
-	std::string serialise(bool sort_keys = false, bool pretty = true, std::uint8_t indent = 0) const;
+	std::string serialise(serial_opts const& options = g_serial_opts, std::uint8_t indent = 0) const;
 };
 
 struct array : base, detail::container_type
@@ -204,6 +231,19 @@ struct array : base, detail::container_type
 	/// Must be of the form `[...]`
 	///
 	bool read(std::string_view text, std::uint64_t* line = nullptr);
+	///
+	/// \brief Add an entry (must match held type if not empty)
+	///
+	base* add(std::string_view value, data_type type, std::int8_t max_depth = 8);
+	///
+	/// \brief Add an entry (must match held type if not empty)
+	///
+	template <typename T>
+	T* add(std::string_view value, std::int8_t max_depth = 8);
+	///
+	/// \brief Add an existing entry (move the instance)
+	///
+	bool add(base&& entry);
 
 	///
 	/// \brief Iterate over elements as type T
@@ -221,7 +261,7 @@ struct array : base, detail::container_type
 	///
 	/// \brief Serialise fields into JSON string (adds escapes)
 	///
-	std::stringstream& serialise(std::stringstream& out, bool sort_keys = false, bool pretty = true, std::uint8_t indent = 0) const;
+	std::stringstream& serialise(std::stringstream& out, serial_opts const& options = g_serial_opts, std::uint8_t indent = 0) const;
 };
 
 ///
@@ -342,9 +382,13 @@ T const* base::cast() const
 }
 
 template <typename T>
-T* object::add(std::string key, std::string_view value, std::int8_t max_depth)
+T* object::add(std::string_view key, std::string_view value, std::int8_t max_depth)
 {
-	return add(std::move(key), value, detail::to_data_type<T>(), max_depth)->template cast<T>();
+	if (auto entry = add(key, value, detail::to_data_type<T>(), max_depth))
+	{
+		return entry->template cast<T>();
+	}
+	return nullptr;
 }
 
 template <typename T>
@@ -374,6 +418,16 @@ template <typename T>
 bool object::contains(std::string const& id) const
 {
 	return find<T>(id) != nullptr;
+}
+
+template <typename T>
+T* array::add(std::string_view value, std::int8_t max_depth)
+{
+	if (auto entry = add(value, detail::to_data_type<T>(), max_depth))
+	{
+		return entry->template cast<T>();
+	}
+	return nullptr;
 }
 
 template <typename T, typename F>
