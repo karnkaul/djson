@@ -4,9 +4,10 @@ set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "")
 project(djson)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.?pp")
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
+file(GLOB_RECURSE INCLUDES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.?pp")
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${INCLUDES} ${SOURCES})
 
-add_library(djson ${SOURCES})
+add_library(djson ${INCLUDES} ${SOURCES})
 target_compile_features(djson PUBLIC cxx_std_17)
 target_include_directories(djson PUBLIC include)
 

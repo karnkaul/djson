@@ -406,32 +406,32 @@ base_ptr create(data_type type, std::string_view value, std::uint64_t& out_line,
 	{
 		auto new_bool = std::make_unique<boolean>();
 		new_bool->value = value == "true" ? true : false;
-		return std::move(new_bool);
+		return new_bool;
 	}
 	case data_type::integer:
 	{
 		auto new_integer = std::make_unique<integer>();
 		new_integer->value = to_numeric<std::int64_t>(value);
-		return std::move(new_integer);
+		return new_integer;
 	}
 	case data_type::floating:
 	{
 		auto new_float = std::make_unique<floating>();
 		new_float->value = to_numeric<double>(value);
-		return std::move(new_float);
+		return new_float;
 	}
 	case data_type::string:
 	{
 		auto new_string = std::make_unique<string>();
 		new_string->value = sanitise(value);
-		return std::move(new_string);
+		return new_string;
 	}
 	case data_type::object:
 	{
 		auto new_object = std::make_unique<object>();
 		if (new_object->read(value, max_depth - 1, &out_line))
 		{
-			return std::move(new_object);
+			return new_object;
 		}
 		return {};
 	}
@@ -440,7 +440,7 @@ base_ptr create(data_type type, std::string_view value, std::uint64_t& out_line,
 		auto new_array = std::make_unique<array>();
 		if (new_array->read(value, &out_line))
 		{
-			return std::move(new_array);
+			return new_array;
 		}
 		return {};
 	}
