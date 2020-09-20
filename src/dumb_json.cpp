@@ -210,7 +210,7 @@ std::string_view parse_primitive(std::string_view& out_text, std::uint64_t& out_
 			log_err("[{}] Unexpected end of string (line: {})", g_name, out_line);
 			return {};
 		}
-		constexpr static std::array end_chars = {',', '}', ']'};
+		static constexpr std::array end_chars = {',', '}', ']'};
 		auto is_end_char = [](char c) -> bool { return std::isspace(c) || std::find(end_chars.begin(), end_chars.end(), c) != end_chars.end(); };
 		for (std::size_t end = 0; end < text.size(); ++end)
 		{
@@ -293,7 +293,7 @@ std::string_view parse_object_or_array(std::string_view& out_text, std::uint64_t
 
 std::string parse_key(std::string_view& out_text, std::uint64_t& out_line)
 {
-	static std::string_view const s_failure = "failed to extract key!";
+	static constexpr std::string_view s_failure = "failed to extract key!";
 	if (out_text.empty())
 	{
 		log_err("[{}] Unexpected end of string (line: {}), {}", g_name, out_line, s_failure);
@@ -319,7 +319,7 @@ std::string parse_key(std::string_view& out_text, std::uint64_t& out_line)
 
 std::pair<std::string_view, data_type> parse_value(std::string_view& out_text, std::uint64_t& out_line, std::uint64_t& out_value_start_line)
 {
-	static std::string_view const s_failure = "failed to extract value!";
+	static constexpr std::string_view s_failure = "failed to extract value!";
 	trim(out_text, out_line);
 	if (out_text.empty())
 	{
