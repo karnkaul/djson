@@ -1,37 +1,20 @@
 #include <algorithm>
 #include <cstring>
 #include <map>
+#include <str_format/str_format.hpp>
 #include <dumb_json/dumb_json.hpp>
 
 namespace dj
 {
 namespace
 {
-std::ostream& format(std::ostream& out, std::string_view fmt)
-{
-	out << fmt;
-	return out;
-}
-
-template <typename Arg, typename... Args>
-std::ostream& format(std::ostream& out, std::string_view fmt, Arg&& arg, Args&&... args)
-{
-	if (auto search = fmt.find("{}"); search != std::string::npos)
-	{
-		std::string_view text(fmt.data(), search);
-		out << text << std::forward<Arg>(arg);
-		return format(out, fmt.substr(search + 2), std::forward<Args>(args)...);
-	}
-	return format(out, fmt);
-}
-
 template <typename... Args>
 void log_err(std::string_view fmt, Args&&... args)
 {
 	if (g_log_error)
 	{
 		std::stringstream str;
-		format(str, fmt, std::forward<Args>(args)...);
+		kt::format_str(str, fmt, std::forward<Args>(args)...);
 		g_log_error(str.str());
 	}
 }
