@@ -57,7 +57,7 @@ void ignore_pair::add(std::pair<char, char> match) {
 
 bool is_escaped(std::string_view text, std::size_t this_char, char escape = '\\') {
 	bool b_escaping = false;
-	for (; this_char > 0 && text.at(this_char - 1) == escape; --this_char) {
+	for (; this_char > 0 && text[this_char - 1] == escape; --this_char) {
 		b_escaping = !b_escaping;
 	}
 	return b_escaping;
@@ -86,14 +86,14 @@ bool is_bool(std::string_view text) {
 }
 
 void trim(std::string_view& out_text, std::size_t& out_line) {
-	while (!out_text.empty() && is_whitespace(out_text.at(0), &out_line)) {
+	while (!out_text.empty() && is_whitespace(out_text[0], &out_line)) {
 		out_text = out_text.substr(1);
 	}
 }
 
 void count_newlines(std::string_view text, std::uint64_t& out_line) {
 	while (!text.empty()) {
-		is_whitespace(text.at(0), &out_line);
+		is_whitespace(text[0], &out_line);
 		text = text.substr(1);
 	}
 }
@@ -106,7 +106,7 @@ std::string sanitise(std::string_view text, std::size_t begin = 0, std::size_t e
 	}
 	for (std::size_t idx = begin; idx < end; ++idx) {
 		if (!is_escaped(text, idx + 1)) {
-			ret += text.at(idx);
+			ret += text[idx];
 		}
 	}
 	return ret;
@@ -116,7 +116,7 @@ data_type parse_type(std::string_view text) {
 	std::uint64_t line = 0;
 	trim(text, line);
 	if (!text.empty()) {
-		char const c = text.at(0);
+		char const c = text[0];
 		switch (c) {
 		case '[':
 			return data_type::array;
@@ -139,7 +139,7 @@ data_type parse_type(std::string_view text) {
 }
 
 std::string_view parse_primitive(std::string_view& out_text, std::uint64_t& out_line) {
-	if (!out_text.empty() && out_text.at(0) != '\"' && out_text.at(0) != '[' && out_text.at(0) != '{') {
+	if (!out_text.empty() && out_text[0] != '\"' && out_text[0] != '[' && out_text[0] != '{') {
 		auto text = out_text;
 		trim(text, out_line);
 		if (text.empty()) {
@@ -149,7 +149,7 @@ std::string_view parse_primitive(std::string_view& out_text, std::uint64_t& out_
 		static constexpr std::array end_chars = {',', '}', ']'};
 		auto is_end_char = [](char c) -> bool { return std::isspace(c) || std::find(end_chars.begin(), end_chars.end(), c) != end_chars.end(); };
 		for (std::size_t end = 0; end < text.size(); ++end) {
-			if (is_end_char(text.at(end))) {
+			if (is_end_char(text[end])) {
 				text = out_text;
 				count_newlines(out_text.substr(0, end), out_line);
 				out_text = out_text.substr(end + 1);
@@ -166,7 +166,7 @@ std::string_view parse_primitive(std::string_view& out_text, std::uint64_t& out_
 }
 
 std::string_view parse_string(std::string_view& out_text, std::uint64_t& out_line) {
-	if (!out_text.empty() && out_text.at(0) == '\"') {
+	if (!out_text.empty() && out_text[0] == '\"') {
 		auto text = out_text;
 		if (text.size() < 2) {
 			log_err("[{}] Unexpected end of string (line: {})", g_name, out_line);
@@ -175,7 +175,7 @@ std::string_view parse_string(std::string_view& out_text, std::uint64_t& out_lin
 		}
 		for (std::size_t end = 1; end < text.size(); ++end) {
 			bool b_escaping = is_escaped(text, end);
-			if (!b_escaping && text.at(end) == '\"') {
+			if (!b_escaping && text[end] == '\"') {
 				count_newlines(out_text.substr(0, end), out_line);
 				out_text = out_text.substr(end + 1);
 				trim(out_text, out_line);
@@ -189,7 +189,7 @@ std::string_view parse_string(std::string_view& out_text, std::uint64_t& out_lin
 
 std::string_view parse_object_or_array(std::string_view& out_text, std::uint64_t& out_line, bool b_array) {
 	char const start_char = b_array ? '[' : '{';
-	if (!out_text.empty() && out_text.at(0) == start_char) {
+	if (!out_text.empty() && out_text[0] == start_char) {
 		char const end_char = b_array ? ']' : '}';
 		ignore_pair end_escapes;
 		end_escapes.add({'{', '}'});
@@ -197,13 +197,13 @@ std::string_view parse_object_or_array(std::string_view& out_text, std::uint64_t
 		end_escapes.add({'[', ']'});
 		auto text = out_text;
 		for (std::size_t end = 0; end < text.size(); ++end) {
-			char c = text.at(end);
+			char c = text[end];
 			bool b_escaping = end_escapes.count({'\"', '\"'}) > 0 ? is_escaped(text, end) : false;
 			if (b_escaping) {
 				continue;
 			}
 			auto escape_stack = end_escapes.process(c);
-			if (escape_stack <= 0 && text.at(end) == end_char) {
+			if (escape_stack <= 0 && text[end] == end_char) {
 				count_newlines(out_text.substr(0, end - 1), out_line);
 				out_text = out_text.substr(end);
 				trim(out_text, out_line);
@@ -222,13 +222,13 @@ std::string parse_key(std::string_view& out_text, std::uint64_t& out_line) {
 		return {};
 	}
 	trim(out_text, out_line);
-	char c = out_text.at(0);
+	char c = out_text[0];
 	if (c != '\"') {
 		log_err("[{}] Expected: '\"' (line: {}), {}!", g_name, out_line, s_failure);
 		return {};
 	}
 	std::string ret = sanitise(parse_string(out_text, out_line));
-	if (out_text.empty() || out_text.at(0) != ':') {
+	if (out_text.empty() || out_text[0] != ':') {
 		log_err("[{}] Expected ':' after key [{}] (line: {}), {}", g_name, ret, out_line, s_failure);
 		return {};
 	}
@@ -276,7 +276,7 @@ std::pair<std::string_view, data_type> parse_value(std::string_view& out_text, s
 		return {};
 	}
 	trim(out_text, out_line);
-	if (!out_text.empty() && out_text.at(0) == ',') {
+	if (!out_text.empty() && out_text[0] == ',') {
 		out_text = out_text.substr(1);
 		trim(out_text, out_line);
 	}
@@ -288,7 +288,7 @@ T to_numeric(std::string_view text) {
 	T ret = {};
 	std::array<char, g_bufSize> buffer;
 	std::memcpy(buffer.data(), text.data(), std::min(text.size(), buffer.size()));
-	buffer.at(text.size()) = '\0';
+	buffer[text.size()] = '\0';
 	try {
 		if constexpr (std::is_integral_v<T>) {
 			ret = (T)std::atoi(buffer.data());
@@ -348,15 +348,15 @@ void advance(data_type type, std::string_view& start, uint64_t& out_line, char f
 	if (type == data_type::array || type == data_type::object) {
 		char const end_char = type == data_type::object ? '}' : ']';
 		trim(start, out_line);
-		if (!start.empty() && start.at(0) == end_char) {
+		if (!start.empty() && start[0] == end_char) {
 			start = start.substr(1);
 			trim(start, out_line);
 		}
 	}
 	if (!start.empty()) {
-		if (start.at(0) == final) {
+		if (start[0] == final) {
 			start = {};
-		} else if (start.at(0) == ',') {
+		} else if (start[0] == ',') {
 			start = start.substr(1);
 			trim(start, out_line);
 		}
@@ -513,7 +513,7 @@ bool object::read(std::string_view text, std::int8_t max_depth, std::uint64_t* l
 	}
 	trim(text, *line);
 	auto start = text;
-	if (!start.empty() && start.at(0) == '{') {
+	if (!start.empty() && start[0] == '{') {
 		start = start.substr(1);
 		trim(start, *line);
 		while (!start.empty()) {
@@ -633,7 +633,7 @@ bool array::read(std::string_view text, std::uint64_t* line) {
 	}
 	trim(text, *line);
 	auto start = text;
-	if (!start.empty() && start.at(0) == '[') {
+	if (!start.empty() && start[0] == '[') {
 		start = start.substr(1);
 		while (!start.empty()) {
 			auto value_line = *line;
@@ -646,7 +646,7 @@ bool array::read(std::string_view text, std::uint64_t* line) {
 				fields.push_back(std::move(new_entry));
 			}
 			trim(start, *line);
-			if (!start.empty() && start.at(0) == ']') {
+			if (!start.empty() && start[0] == ']') {
 				break;
 			}
 		}
