@@ -13,7 +13,6 @@ void log_err(std::string_view fmt, Args&&... args) {
 	}
 }
 
-constexpr std::size_t g_bufSize = 128;
 constexpr char const* g_name = "dumbjson";
 
 struct ignore_pair final {
@@ -250,6 +249,7 @@ std::pair<std::string_view, data_type> parse_value(std::string_view& out_text, s
 	switch (type) {
 	case data_type::boolean:
 	case data_type::integer:
+	case data_type::uinteger:
 	case data_type::floating: {
 		value = parse_primitive(out_text, out_line);
 		break;
@@ -286,14 +286,11 @@ std::pair<std::string_view, data_type> parse_value(std::string_view& out_text, s
 template <typename T>
 T to_numeric(std::string_view text) {
 	T ret = {};
-	std::array<char, g_bufSize> buffer;
-	std::memcpy(buffer.data(), text.data(), std::min(text.size(), buffer.size()));
-	buffer[text.size()] = '\0';
 	try {
 		if constexpr (std::is_integral_v<T>) {
-			ret = (T)std::atoi(buffer.data());
+			ret = (T)std::atoi(text.data());
 		} else {
-			ret = (T)std::atof(buffer.data());
+			ret = (T)std::atof(text.data());
 		}
 	} catch (const std::exception& e) {
 		log_err("[{}] Failed to parse [{}] into numeric type! {}", g_name, text, e.what());
@@ -301,7 +298,7 @@ T to_numeric(std::string_view text) {
 	return ret;
 }
 
-base_ptr create(data_type type, std::string_view value, std::uint64_t& out_line, std::int8_t max_depth) {
+base_ptr create(data_type type, std::string_view value, std::uint64_t& out_line, std::int8_t max_depth, bool allow_empty) {
 	switch (type) {
 	case data_type::boolean: {
 		auto new_bool = std::make_unique<boolean>();
@@ -312,6 +309,11 @@ base_ptr create(data_type type, std::string_view value, std::uint64_t& out_line,
 		auto new_integer = std::make_unique<integer>();
 		new_integer->value = to_numeric<std::int64_t>(value);
 		return new_integer;
+	}
+	case data_type::uinteger: {
+		auto new_uinteger = std::make_unique<uinteger>();
+		new_uinteger->value = to_numeric<std::uint64_t>(value);
+		return new_uinteger;
 	}
 	case data_type::floating: {
 		auto new_float = std::make_unique<floating>();
@@ -325,6 +327,9 @@ base_ptr create(data_type type, std::string_view value, std::uint64_t& out_line,
 	}
 	case data_type::object: {
 		auto new_object = std::make_unique<object>();
+		if (value.empty() && allow_empty) {
+			return new_object;
+		}
 		if (new_object->read(value, max_depth - 1, &out_line)) {
 			return new_object;
 		}
@@ -332,6 +337,9 @@ base_ptr create(data_type type, std::string_view value, std::uint64_t& out_line,
 	}
 	case data_type::array: {
 		auto new_array = std::make_unique<array>();
+		if (value.empty() && allow_empty) {
+			return new_array;
+		}
 		if (new_array->read(value, &out_line)) {
 			return new_array;
 		}
@@ -366,7 +374,6 @@ void advance(data_type type, std::string_view& start, uint64_t& out_line, char f
 struct indenter final {
 	serial_opts const* opts = nullptr;
 	std::uint8_t indent = 0;
-	bool b_indent = true;
 };
 struct newliner final {
 	serial_opts const* opts = nullptr;
@@ -376,7 +383,7 @@ struct spacer final {
 	std::uint8_t spaces = 1;
 };
 std::ostream& operator<<(std::ostream& out, indenter s) {
-	while (s.b_indent && s.indent-- > 0) {
+	while (s.opts->pretty && s.indent-- > 0) {
 		if (s.opts->space_indent > 0) {
 			for (auto i = s.opts->space_indent; i > 0; --i) {
 				out << ' ';
@@ -449,7 +456,7 @@ std::string serialise_value(base const& base) {
 	return {};
 }
 
-std::stringstream& serialise_entry(serial_opts const& opts, std::stringstream& out, std::uint8_t indent, base const& entry, bool b_last) {
+std::ostream& serialise_entry(serial_opts const& opts, std::ostream& out, std::uint8_t indent, base const& entry, bool b_last) {
 	auto const type = entry.type();
 	if (detail::is_type_value_type(type)) {
 		out << serialise_value(entry);
@@ -520,7 +527,7 @@ bool object::read(std::string_view text, std::int8_t max_depth, std::uint64_t* l
 			auto key = parse_key(start, *line);
 			auto value_line = *line;
 			auto [value, type] = parse_value(start, *line, value_line);
-			if (auto new_entry = create(type, value, value_line, max_depth)) {
+			if (auto new_entry = create(type, value, value_line, max_depth, true)) {
 				if (!key.empty()) {
 					fields[std::string(key)] = std::move(new_entry);
 				} else {
@@ -550,7 +557,7 @@ base* object::add(std::string_view key, std::string_view value, data_type type, 
 		value = pair.first;
 		type = pair.second;
 	}
-	if (auto new_entry = create(type, value, value_line, max_depth)) {
+	if (auto new_entry = create(type, value, value_line, max_depth, true)) {
 		auto ret = new_entry.get();
 		fields.emplace(std::move(id), std::move(new_entry));
 		return ret;
@@ -559,29 +566,31 @@ base* object::add(std::string_view key, std::string_view value, data_type type, 
 	return nullptr;
 }
 
-bool object::add(std::string_view key, base&& entry) {
+dj::base* object::add(std::string_view key, base&& entry) {
 	std::string id = key.data();
 	if (id.empty()) {
 		log_err("[{}] Empty key!", g_name);
-		return false;
+		return {};
 	}
 	if (entry.type() == data_type::none) {
 		log_err("[{}] Invalid type!", g_name);
-		return false;
+		return {};
 	}
 	if (fields.find(id) != fields.end()) {
 		log_err("[{}] Duplicate key [{}]!", g_name, id);
-		return false;
+		return {};
 	}
-	fields.emplace(std::move(id), move_entry(std::move(entry)));
-	return true;
+	auto u_entry = move_entry(std::move(entry));
+	auto ret = u_entry.get();
+	fields.emplace(std::move(id), std::move(u_entry));
+	return ret;
 }
 
 bool object::contains(std::string const& id) const {
 	return fields.find(id) != fields.end();
 }
 
-std::stringstream& object::serialise(std::stringstream& out, serial_opts const& options, std::uint8_t indent) const {
+std::ostream& object::serialise(std::ostream& out, serial_opts const& options, std::uint8_t indent) const {
 	if (fields.empty()) {
 		out << "{}";
 	} else {
@@ -642,7 +651,7 @@ bool array::read(std::string_view text, std::uint64_t* line) {
 			if (held_type == data_type::none) {
 				held_type = type;
 			}
-			if (auto new_entry = create(type, value, value_line, 8)) {
+			if (auto new_entry = create(type, value, value_line, 8, true)) {
 				fields.push_back(std::move(new_entry));
 			}
 			trim(start, *line);
@@ -669,7 +678,7 @@ base* array::add(std::string_view value, data_type type, std::int8_t max_depth) 
 		value = pair.first;
 		type = pair.second;
 	}
-	if (auto new_entry = create(type, value, value_line, max_depth)) {
+	if (auto new_entry = create(type, value, value_line, max_depth, true)) {
 		auto ret = new_entry.get();
 		fields.push_back(std::move(new_entry));
 		return ret;
@@ -677,17 +686,19 @@ base* array::add(std::string_view value, data_type type, std::int8_t max_depth) 
 	return nullptr;
 }
 
-bool array::add(base&& entry) {
+base* array::add(base&& entry) {
 	if (entry.type() != data_type::none && (held_type == data_type::none || entry.type() == held_type)) {
-		fields.push_back(move_entry(std::move(entry)));
-		held_type = entry.type();
-		return true;
+		auto u_entry = move_entry(std::move(entry));
+		auto ret = u_entry.get();
+		fields.push_back(std::move(u_entry));
+		held_type = ret->type();
+		return ret;
 	}
 	log_err("[{}] Invalid type!", g_name);
-	return false;
+	return {};
 }
 
-std::stringstream& array::serialise(std::stringstream& out, serial_opts const& options, std::uint8_t indent) const {
+std::ostream& array::serialise(std::ostream& out, serial_opts const& options, std::uint8_t indent) const {
 	if (fields.empty()) {
 		out << "[]";
 	} else {
@@ -714,5 +725,5 @@ std::stringstream& array::serialise(std::stringstream& out, serial_opts const& o
 dj::base_ptr dj::deserialise(std::string_view text, std::uint8_t max_depth) {
 	std::uint64_t line = 1;
 	auto [value, type] = parse_value(text, line, line);
-	return create(type, value, line, max_depth);
+	return create(type, value, line, max_depth, true);
 }

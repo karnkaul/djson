@@ -14,7 +14,7 @@ using namespace std::string_view_literals;
 ///
 /// \brief Enumeration of all supported concrete types
 ///
-enum class data_type { none, boolean, integer, floating, string, object, array };
+enum class data_type { none, boolean, integer, uinteger, floating, string, object, array };
 
 ///
 /// \brief Serialisation options
@@ -108,6 +108,16 @@ struct integer : base, detail::value_type {
 	}
 };
 
+struct uinteger : base, detail::value_type {
+	using value_type = std::uint64_t;
+
+	value_type value = {};
+
+	data_type type() const override {
+		return data_type::uinteger;
+	}
+};
+
 struct floating : base, detail::value_type {
 	using value_type = double;
 
@@ -151,9 +161,19 @@ struct object : base, detail::container_type {
 	template <typename T>
 	T* add(std::string_view key, std::string_view value, std::int8_t max_depth = 8);
 	///
+	/// \brief Add a custom value_type field of type T
+	///
+	template <typename T>
+	T* add(std::string_view key, typename T::value_type&& value);
+	///
+	/// \brief Add a custom value_type field of type T
+	///
+	template <typename T>
+	T* add(std::string_view key, typename T::value_type const& value);
+	///
 	/// \brief Add an existing entry (move the instance)
 	///
-	bool add(std::string_view key, base&& entry);
+	base* add(std::string_view key, base&& entry);
 
 	///
 	/// \brief Find a field of type T
@@ -180,7 +200,7 @@ struct object : base, detail::container_type {
 	///
 	/// \brief Serialise fields into JSON string (adds escapes)
 	///
-	std::stringstream& serialise(std::stringstream& out, serial_opts const& options = g_serial_opts, std::uint8_t indent = 0) const;
+	std::ostream& serialise(std::ostream& out, serial_opts const& options = g_serial_opts, std::uint8_t indent = 0) const;
 	///
 	/// \brief Serialise fields into JSON string (adds escapes)
 	///
@@ -211,9 +231,19 @@ struct array : base, detail::container_type {
 	template <typename T>
 	T* add(std::string_view value, std::int8_t max_depth = 8);
 	///
+	/// \brief Add a value_type entry (must match held type if not empty)
+	///
+	template <typename T>
+	T* add(typename T::value_type&& value);
+	///
+	/// \brief Add a value_type entry (must match held type if not empty)
+	///
+	template <typename T>
+	T* add(typename T::value_type const& value);
+	///
 	/// \brief Add an existing entry (move the instance)
 	///
-	bool add(base&& entry);
+	base* add(base&& entry);
 
 	///
 	/// \brief Iterate over elements as type T
@@ -231,7 +261,7 @@ struct array : base, detail::container_type {
 	///
 	/// \brief Serialise fields into JSON string (adds escapes)
 	///
-	std::stringstream& serialise(std::stringstream& out, serial_opts const& options = g_serial_opts, std::uint8_t indent = 0) const;
+	std::ostream& serialise(std::ostream& out, serial_opts const& options = g_serial_opts, std::uint8_t indent = 0) const;
 };
 
 ///
@@ -296,6 +326,8 @@ constexpr data_type to_data_type() {
 		return data_type::boolean;
 	} else if constexpr (std::is_same_v<T, integer>) {
 		return data_type::integer;
+	} else if constexpr (std::is_same_v<T, uinteger>) {
+		return data_type::uinteger;
 	} else if constexpr (std::is_same_v<T, floating>) {
 		return data_type::floating;
 	} else if constexpr (std::is_same_v<T, string>) {
@@ -310,7 +342,7 @@ constexpr data_type to_data_type() {
 }
 
 constexpr bool is_type_value_type(data_type type) {
-	return type == data_type::boolean || type == data_type::integer || type == data_type::floating || type == data_type::string;
+	return type > data_type::none && type < data_type::object;
 }
 } // namespace detail
 
@@ -329,6 +361,26 @@ T const* base::cast() const {
 template <typename T>
 T* object::add(std::string_view key, std::string_view value, std::int8_t max_depth) {
 	if (auto entry = add(key, value, detail::to_data_type<T>(), max_depth)) {
+		return entry->template cast<T>();
+	}
+	return nullptr;
+}
+
+template <typename T>
+T* object::add(std::string_view key, typename T::value_type&& value) {
+	T t;
+	t.value = std::move(value);
+	if (auto entry = add(key, std::move(t))) {
+		return entry->template cast<T>();
+	}
+	return nullptr;
+}
+
+template <typename T>
+T* object::add(std::string_view key, typename T::value_type const& value) {
+	T t;
+	t.value = value;
+	if (auto entry = add(key, std::move(t))) {
 		return entry->template cast<T>();
 	}
 	return nullptr;
@@ -361,6 +413,26 @@ bool object::contains(std::string const& id) const {
 template <typename T>
 T* array::add(std::string_view value, std::int8_t max_depth) {
 	if (auto entry = add(value, detail::to_data_type<T>(), max_depth)) {
+		return entry->template cast<T>();
+	}
+	return nullptr;
+}
+
+template <typename T>
+T* array::add(typename T::value_type&& value) {
+	T t;
+	t.value = std::move(value);
+	if (auto entry = add(std::move(t))) {
+		return entry->template cast<T>();
+	}
+	return nullptr;
+}
+
+template <typename T>
+T* array::add(typename T::value_type const& value) {
+	T t;
+	t.value = value;
+	if (auto entry = add(std::move(t))) {
 		return entry->template cast<T>();
 	}
 	return nullptr;
