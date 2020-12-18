@@ -84,7 +84,7 @@ bool is_bool(std::string_view text) {
 	return false;
 }
 
-void trim(std::string_view& out_text, std::size_t& out_line) {
+void trim(std::string_view& out_text, std::uint64_t& out_line) {
 	while (!out_text.empty() && is_whitespace(out_text[0], &out_line)) {
 		out_text = out_text.substr(1);
 	}
