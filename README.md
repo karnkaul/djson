@@ -31,7 +31,7 @@ This is a "dumb simple" JSON parsing library, it does not conform fully to any s
 ### Steps
 
 1. Clone repo to appropriate subdirectory, say `dumb_json`
-1. Add library to project via: `add_subdirectory(dumb_json)` and `target_link_libraries(foo djson)`
+1. Add library to project via: `add_subdirectory(dumb_json)` and `target_link_libraries(foo djson::djson)`
 1. Use via: `#include <dumb_json/djson.hpp>`
 
 ### Examples

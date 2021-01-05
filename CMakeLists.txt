@@ -45,6 +45,7 @@ file(GLOB_RECURSE INCLUDES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/includ
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${INCLUDES} ${SOURCES})
 
 add_library(djson ${INCLUDES} ${SOURCES})
+add_library(djson::djson ALIAS djson)
 target_compile_features(djson PUBLIC cxx_std_17)
 target_include_directories(djson
 	PUBLIC
