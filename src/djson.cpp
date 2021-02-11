@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <map>
 #include <sstream>
 #include <stdexcept>
@@ -515,6 +516,10 @@ std::uint64_t converter_t<std::uint64_t>::operator()(std::string_view scalar) co
 	} catch (std::invalid_argument const&) {
 		// TODO error
 		ret = 0;
+	}
+	if (errno == ERANGE) {
+		ret = 0;
+		errno = 0;
 	}
 	return ret;
 }
