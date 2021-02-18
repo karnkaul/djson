@@ -24,6 +24,11 @@ constexpr bool quote(char c) noexcept {
 	return c == '\'' || c == '"';
 }
 
+template <typename T>
+constexpr bool space(T t) noexcept {
+	return std::isspace(static_cast<unsigned char>(t));
+}
+
 location_t update(std::string_view text, std::size_t begin, std::size_t size, location_t loc) {
 	location_t ret = loc;
 	for (std::size_t i = 0; i < size; ++i) {
@@ -70,7 +75,7 @@ struct lexer::substring_t {
 	}
 
 	location_t trim(location_t loc) noexcept {
-		while (remain() > 0 && std::isspace(peek())) {
+		while (remain() > 0 && space(peek())) {
 			loc = advance(1, loc);
 		}
 		return loc;
@@ -156,7 +161,7 @@ lexer::scan_t lexer::next() {
 		auto const [l, i] = seek(lnext, sub.index);
 		return scan_t{*tk, l, i};
 	}
-	return make_value(sub, begin, loc, [this](substring_t const& s) { return std::isspace(s.peek()) || match(s, {}).has_value(); });
+	return make_value(sub, begin, loc, [this](substring_t const& s) { return space(s.peek()) || match(s, {}).has_value(); });
 }
 
 std::optional<token_t> lexer::match(substring_t const& sub, location_t const& loc) const {

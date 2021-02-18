@@ -41,7 +41,7 @@ bool is_number(std::string_view str, bool match_empty) noexcept {
 			decimal = true;
 			continue;
 		}
-		if (!std::isdigit(ch)) {
+		if (!std::isdigit(static_cast<unsigned char>(ch))) {
 			return false;
 		}
 	}
