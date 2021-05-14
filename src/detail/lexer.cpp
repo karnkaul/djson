@@ -16,13 +16,9 @@ std::unordered_map<char, tk_type> const char_tokens = {
 };
 // clang-format on
 
-constexpr bool new_line(char c) noexcept {
-	return c == '\n' || c == '\r';
-}
+constexpr bool new_line(char c) noexcept { return c == '\n' || c == '\r'; }
 
-constexpr bool quote(char c) noexcept {
-	return c == '\'' || c == '"';
-}
+constexpr bool quote(char c) noexcept { return c == '\'' || c == '"'; }
 
 template <typename T>
 constexpr bool space(T t) noexcept {
@@ -44,15 +40,11 @@ location_t update(std::string_view text, std::size_t begin, std::size_t size, lo
 
 constexpr bool is_escaped(std::string_view text, std::size_t this_char, char escape = '\\') noexcept {
 	bool b_escaping = false;
-	for (; this_char > 0 && text[this_char - 1] == escape; --this_char) {
-		b_escaping = !b_escaping;
-	}
+	for (; this_char > 0 && text[this_char - 1] == escape; --this_char) { b_escaping = !b_escaping; }
 	return b_escaping;
 }
 
-constexpr bool comment(char current, char next) noexcept {
-	return current == '#' || (current == '/' && next == '/');
-}
+constexpr bool comment(char current, char next) noexcept { return current == '#' || (current == '/' && next == '/'); }
 } // namespace
 
 struct lexer::substring_t {
@@ -60,9 +52,7 @@ struct lexer::substring_t {
 	std::size_t index = 0;
 
 	char peek(std::size_t offset = 0) const noexcept {
-		if (index + offset < text.size()) {
-			return text[index + offset];
-		}
+		if (index + offset < text.size()) { return text[index + offset]; }
 		return '\0';
 	}
 
@@ -75,26 +65,18 @@ struct lexer::substring_t {
 	}
 
 	location_t trim(location_t loc) noexcept {
-		while (remain() > 0 && space(peek())) {
-			loc = advance(1, loc);
-		}
+		while (remain() > 0 && space(peek())) { loc = advance(1, loc); }
 		return loc;
 	}
 
 	location_t seek_new_line(location_t loc) noexcept {
-		while (remain() > 0 && !new_line(peek())) {
-			loc = advance(1, loc);
-		}
+		while (remain() > 0 && !new_line(peek())) { loc = advance(1, loc); }
 		return loc;
 	}
 
-	constexpr bool test(char ch) const noexcept {
-		return index < text.size() && text[index] == ch;
-	}
+	constexpr bool test(char ch) const noexcept { return index < text.size() && text[index] == ch; }
 
-	constexpr std::size_t remain() const noexcept {
-		return text.size() > index ? text.size() - index : 0;
-	}
+	constexpr std::size_t remain() const noexcept { return text.size() > index ? text.size() - index : 0; }
 };
 
 std::optional<token_t> lexer::advance() {
@@ -107,9 +89,7 @@ std::optional<token_t> lexer::advance() {
 		m_loc = lex.next_loc;
 		return ret;
 	}
-	if (m_index >= m_text.size()) {
-		return std::nullopt;
-	}
+	if (m_index >= m_text.size()) { return std::nullopt; }
 	auto [t, l, i] = next();
 	m_loc = l;
 	m_index = i;
@@ -120,19 +100,13 @@ std::vector<token_t> lexer::peek(std::size_t count) {
 	std::vector<token_t> ret;
 	if (count <= m_next.size()) {
 		ret.reserve(count);
-		for (auto const& scan : m_next) {
-			ret.push_back(scan.token);
-		}
+		for (auto const& scan : m_next) { ret.push_back(scan.token); }
 		return ret;
 	}
 	std::size_t index = m_next.empty() ? m_index : m_next.back().next_idx;
-	for (; index < m_text.size() && m_next.size() < count; index = m_next.back().next_idx) {
-		m_next.push_back(next());
-	}
+	for (; index < m_text.size() && m_next.size() < count; index = m_next.back().next_idx) { m_next.push_back(next()); }
 	ret.reserve(m_next.size());
-	for (auto const& scan : m_next) {
-		ret.push_back(scan.token);
-	}
+	for (auto const& scan : m_next) { ret.push_back(scan.token); }
 	return ret;
 }
 
@@ -166,22 +140,16 @@ lexer::scan_t lexer::next() {
 
 std::optional<token_t> lexer::match(substring_t const& sub, location_t const& loc) const {
 	if (sub.index < m_text.size()) {
-		if (auto it = char_tokens.find(sub.peek()); it != char_tokens.end()) {
-			return make_token(sub.index, 1, loc, it->second);
-		}
+		if (auto it = char_tokens.find(sub.peek()); it != char_tokens.end()) { return make_token(sub.index, 1, loc, it->second); }
 	}
 	return std::nullopt;
 }
 
 std::pair<location_t, size_t> lexer::seek(location_t const& loc, std::size_t end) const {
-	if (end >= m_text.size()) {
-		return {loc, m_text.size()};
-	}
+	if (end >= m_text.size()) { return {loc, m_text.size()}; }
 	substring_t sub{m_text, end};
 	location_t l = loc;
-	if (comment(sub.peek(), sub.peek(1))) {
-		l = sub.seek_new_line(l);
-	}
+	if (comment(sub.peek(), sub.peek(1))) { l = sub.seek_new_line(l); }
 	l = sub.trim(l);
 	return {l, sub.index};
 }
@@ -195,9 +163,7 @@ lexer::scan_t lexer::make_value(substring_t sub, std::size_t begin, location_t c
 	location_t next_loc = loc;
 	while (sub.remain() > 0) {
 		next_loc = sub.advance(1, next_loc);
-		if (pred(sub)) {
-			break;
-		}
+		if (pred(sub)) { break; }
 	}
 	auto const [l, i] = seek(next_loc, sub.index);
 	return scan_t{make_token(begin, sub.index - begin, loc, tk_type::value), l, i};

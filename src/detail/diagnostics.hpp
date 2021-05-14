@@ -36,7 +36,5 @@ bool test_expect(std::optional<token_t> token, lexer const& lexer, tk_type type,
 	return true;
 }
 
-inline bool test_expect(std::optional<token_t> token, lexer const& lexer, tk_type type) {
-	return test_expect(token, lexer, type, token_char(type));
-}
+inline bool test_expect(std::optional<token_t> token, lexer const& lexer, tk_type type) { return test_expect(token, lexer, type, token_char(type)); }
 } // namespace dj::detail

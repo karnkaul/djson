@@ -25,8 +25,7 @@ struct error_location_t {
 struct parse_error_t : std::runtime_error {
 	error_location_t error;
 
-	parse_error_t(error_location_t const& error) : std::runtime_error(error.message.data()), error(error) {
-	}
+	parse_error_t(error_location_t const& error) : std::runtime_error(error.message.data()), error(error) {}
 };
 
 ///
@@ -35,8 +34,7 @@ struct parse_error_t : std::runtime_error {
 struct node_error : std::runtime_error {
 	std::string key;
 
-	node_error(std::string key) : std::runtime_error(("djson: " + key + " not present").data()), key(std::move(key)) {
-	}
+	node_error(std::string key) : std::runtime_error(("djson: " + key + " not present").data()), key(std::move(key)) {}
 };
 
 ///

@@ -19,40 +19,24 @@ parser::node_t make_node(lexer& out_lexer) {
 			node.payload.type = nd_type::object;
 			while (true) {
 				auto const peek = out_lexer.peek();
-				if (peek.empty()) {
-					break;
-				}
+				if (peek.empty()) { break; }
 				token = peek[0];
-				if (token->type == tk_type::curly_close) {
-					break;
-				}
+				if (token->type == tk_type::curly_close) { break; }
 				node.children.push_back(make_node(out_lexer));
-				if (token = out_lexer.advance(); !token || token->type != tk_type::comma) {
-					break;
-				}
+				if (token = out_lexer.advance(); !token || token->type != tk_type::comma) { break; }
 			}
-			if (!detail::test_expect(token, out_lexer, tk_type::curly_close)) {
-				return node;
-			}
+			if (!detail::test_expect(token, out_lexer, tk_type::curly_close)) { return node; }
 		} else if (token->type == tk_type::square_open) {
 			node.payload.type = nd_type::array;
 			while (true) {
 				auto const peek = out_lexer.peek();
-				if (peek.empty()) {
-					break;
-				}
+				if (peek.empty()) { break; }
 				token = peek[0];
-				if (token->type == tk_type::square_close) {
-					break;
-				}
+				if (token->type == tk_type::square_close) { break; }
 				node.children.push_back(make_node(out_lexer));
-				if (token = out_lexer.advance(); !token || token->type != tk_type::comma) {
-					break;
-				}
+				if (token = out_lexer.advance(); !token || token->type != tk_type::comma) { break; }
 			}
-			if (!detail::test_expect(token, out_lexer, tk_type::square_close)) {
-				return node;
-			}
+			if (!detail::test_expect(token, out_lexer, tk_type::square_close)) { return node; }
 		} else if (token->type == tk_type::value) {
 			node.payload.type = nd_type::scalar;
 			node.payload.text = token->text;

@@ -8,15 +8,12 @@
 namespace dj::detail {
 class lexer {
   public:
-	lexer(std::string_view text) : m_text(text), m_index(0), m_loc({1, 0}) {
-	}
+	lexer(std::string_view text) : m_text(text), m_index(0), m_loc({1, 0}) {}
 
 	std::optional<token_t> advance();
 	std::vector<token_t> peek(std::size_t count = 1);
 
-	constexpr location_t const& location() const noexcept {
-		return m_loc;
-	}
+	constexpr location_t const& location() const noexcept { return m_loc; }
 
   private:
 	struct substring_t;

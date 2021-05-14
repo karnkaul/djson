@@ -13,37 +13,25 @@ namespace {
 constexpr std::array g_trues = {"true", "True", "TRUE", "on", "On", "ON"};
 constexpr std::array g_falses = {"false", "False", "FALSE", "off", "Off", "OFF"};
 
-constexpr char peek(std::string_view text, std::size_t idx) noexcept {
-	return idx < text.size() ? text[idx] : '\0';
-}
+constexpr char peek(std::string_view text, std::size_t idx) noexcept { return idx < text.size() ? text[idx] : '\0'; }
 
 bool is_bool(std::string_view str, bool match_empty) noexcept {
-	if (str.empty()) {
-		return match_empty;
-	}
+	if (str.empty()) { return match_empty; }
 	auto const pred = [str](std::string_view const s) { return s == str; };
 	return std::any_of(g_trues.begin(), g_trues.end(), pred) || std::any_of(g_falses.begin(), g_falses.end(), pred);
 }
 
 bool is_number(std::string_view str, bool match_empty) noexcept {
-	if (str.empty()) {
-		return match_empty;
-	}
-	if (str[0] == '-') {
-		str = str.substr(1);
-	}
+	if (str.empty()) { return match_empty; }
+	if (str[0] == '-') { str = str.substr(1); }
 	bool decimal = false;
 	for (char const ch : str) {
 		if (ch == '.') {
-			if (decimal) {
-				return false;
-			}
+			if (decimal) { return false; }
 			decimal = true;
 			continue;
 		}
-		if (!std::isdigit(static_cast<unsigned char>(ch))) {
-			return false;
-		}
+		if (!std::isdigit(static_cast<unsigned char>(ch))) { return false; }
 	}
 	return true;
 }
@@ -53,28 +41,18 @@ std::string unescape(std::string_view value) {
 	ret.reserve(value.size());
 	for (std::size_t idx = 0; idx < value.size(); ++idx) {
 		if (peek(value, idx) == '\\') {
-			if (++idx >= value.size()) {
-				break;
-			}
+			if (++idx >= value.size()) { break; }
 			switch (peek(value, idx)) {
-			case '\\':
-				break;
+			case '\\': break;
 			case 'b':
-				if (!ret.empty()) {
-					ret.pop_back();
-				}
+				if (!ret.empty()) { ret.pop_back(); }
 				++idx;
 				break;
-			case 't':
-				ret += '\t';
-				break;
-			default:
-				break;
+			case 't': ret += '\t'; break;
+			default: break;
 			}
 		}
-		if (char const ch = peek(value, idx); ch != '\0') {
-			ret += ch;
-		}
+		if (char const ch = peek(value, idx); ch != '\0') { ret += ch; }
 	}
 	return ret;
 }
@@ -103,13 +81,9 @@ void fill(node_t& out_root, detail::parser::node_t const& node) {
 			// header contains value(s) metadata
 			auto& header = node.children[0];
 			switch (header.payload.type) {
-			case nd_type::scalar:
-				value.m_value = scalar_t(header.payload.text);
-				break;
+			case nd_type::scalar: value.m_value = scalar_t(header.payload.text); break;
 			case nd_type::array:
-			case nd_type::object:
-				fill(value, header);
-				break;
+			case nd_type::object: fill(value, header); break;
 			default:
 				// TODO error
 				break;
@@ -130,23 +104,16 @@ void fill(node_t& out_root, detail::parser::node_t const& node) {
 			auto& value = *fields.back();
 			switch (child.payload.type) {
 			case nd_type::object:
-			case nd_type::array:
-				fill(value, child);
-				break;
-			case nd_type::scalar:
-				value.m_value = scalar_t(child.payload.text);
-				break;
-			default:
-				break;
+			case nd_type::array: fill(value, child); break;
+			case nd_type::scalar: value.m_value = scalar_t(child.payload.text); break;
+			default: break;
 			}
 		}
 		break;
 	}
 	case nd_type::object: {
 		// object header
-		for (auto const& child : node.children) {
-			fill(out_root, child);
-		}
+		for (auto const& child : node.children) { fill(out_root, child); }
 		break;
 	}
 	default:
@@ -171,9 +138,7 @@ struct spacer final {
 std::ostream& operator<<(std::ostream& out, indenter s) {
 	while (s.opts->pretty && s.indent-- > 0) {
 		if (s.opts->space_indent > 0) {
-			for (auto i = s.opts->space_indent; i > 0; --i) {
-				out << ' ';
-			}
+			for (auto i = s.opts->space_indent; i > 0; --i) { out << ' '; }
 		} else {
 			out << "\t";
 		}
@@ -181,15 +146,11 @@ std::ostream& operator<<(std::ostream& out, indenter s) {
 	return out;
 }
 std::ostream& operator<<(std::ostream& out, newliner n) {
-	if (n.opts->pretty) {
-		out << n.opts->newline;
-	}
+	if (n.opts->pretty) { out << n.opts->newline; }
 	return out;
 }
 std::ostream& operator<<(std::ostream& out, spacer s) {
-	while (s.opts->pretty && s.spaces-- > 0) {
-		out << ' ';
-	}
+	while (s.opts->pretty && s.spaces-- > 0) { out << ' '; }
 	return out;
 }
 
@@ -198,9 +159,7 @@ std::string serialise_str(std::string_view str) {
 	// bool const
 	ret.reserve(str.size());
 	for (char const c : str) {
-		if (c == '"' || c == '\\') {
-			ret += '\\';
-		}
+		if (c == '"' || c == '\\') { ret += '\\'; }
 		ret += c;
 	}
 	return ret;
@@ -211,13 +170,9 @@ std::ostream& serialise_scalar(std::ostream& out, std::string_view str) {
 		out << "\"\"";
 	} else {
 		bool const quoted = !is_bool(str, false) && !is_number(str, false);
-		if (quoted) {
-			out << "\"";
-		}
+		if (quoted) { out << "\""; }
 		out << str;
-		if (quoted) {
-			out << "\"";
-		}
+		if (quoted) { out << "\""; }
 	}
 	return out;
 }
@@ -236,22 +191,16 @@ std::ostream& serialise_object(field_map_t const& fields, std::ostream& out, ser
 		std::size_t index = 0;
 		if (options.sort_keys) {
 			std::map<std::string, node_t const*> map;
-			for (auto const& [key, node] : fields) {
-				map[serialise_str(key)] = node.get();
-			}
+			for (auto const& [key, node] : fields) { map[serialise_str(key)] = node.get(); }
 			for (auto const& [key, p_node] : map) {
-				if (index > 0) {
-					out << n;
-				}
+				if (index > 0) { out << n; }
 				out << t << '\"' << key << "\":" << s;
 				serialise_node(options, out, t.indent, *p_node, (index == fields.size() - 1));
 				++index;
 			}
 		} else {
 			for (auto const& [key, node] : fields) {
-				if (index > 0) {
-					out << n;
-				}
+				if (index > 0) { out << n; }
 				out << t << '\"' << serialise_str(key) << "\":" << s;
 				serialise_node(options, out, t.indent, *node, (index == fields.size() - 1));
 				++index;
@@ -273,9 +222,7 @@ std::ostream& serialise_array(field_array_t const& fields, std::ostream& out, se
 		++t.indent;
 		std::size_t index = 0;
 		for (auto const& node : fields) {
-			if (index > 0) {
-				out << n;
-			}
+			if (index > 0) { out << n; }
 			out << t;
 			serialise_node(options, out, t.indent, *node, (index == fields.size() - 1));
 			++index;
@@ -300,12 +247,9 @@ std::ostream& serialise_node(serial_opts_t const& opts, std::ostream& out, std::
 		serialise_object(std::get<field_map_t>(node.m_value), out, opts, indent);
 		break;
 	}
-	default:
-		break;
+	default: break;
 	}
-	if (!b_last) {
-		out << ',';
-	}
+	if (!b_last) { out << ','; }
 	return out;
 }
 
@@ -330,15 +274,11 @@ node_t& add_node(field_map_t& out_map, std::string_view key, value_t&& value) {
 } // namespace
 
 std::optional<node_t> node_t::make(std::string_view text) {
-	if (auto const roots = read(text); !roots.empty()) {
-		return roots.front();
-	}
+	if (auto const roots = read(text); !roots.empty()) { return roots.front(); }
 	return std::nullopt;
 }
 
-node_ptr node_t::make_ptr(node_t* to_move) {
-	return to_move ? std::make_shared<node_t>(std::move(*to_move)) : std::make_shared<node_t>();
-}
+node_ptr node_t::make_ptr(node_t* to_move) { return to_move ? std::make_shared<node_t>(std::move(*to_move)) : std::make_shared<node_t>(); }
 
 std::vector<node_t> node_t::read(std::string_view text) {
 	std::vector<node_t> ret;
@@ -352,23 +292,17 @@ std::vector<node_t> node_t::read(std::string_view text) {
 			ret.push_back(std::move(root));
 		}
 	} catch (parse_error_t const& e) {
-		if constexpr (error_handler_t::action == error_handler_t::action_t::throw_ex) {
-			throw e;
-		}
+		if constexpr (error_handler_t::action == error_handler_t::action_t::throw_ex) { throw e; }
 	}
 	return ret;
 }
 
 bool node_t::contains(std::string const& key) const {
-	if (auto p_map = std::get_if<field_map_t>(&m_value)) {
-		return p_map->find(key) != p_map->end();
-	}
+	if (auto p_map = std::get_if<field_map_t>(&m_value)) { return p_map->find(key) != p_map->end(); }
 	return false;
 }
 
-node_t& node_t::operator[](std::string const& key) {
-	return sub(key);
-}
+node_t& node_t::operator[](std::string const& key) { return sub(key); }
 
 node_t& node_t::sub(std::string const& key) {
 	auto p_map = std::get_if<field_map_t>(&m_value);
@@ -387,58 +321,40 @@ node_t& node_t::sub(std::string const& key) {
 
 node_t& node_t::get(std::string const& key) const {
 	auto p_map = std::get_if<field_map_t>(&m_value);
-	if (!p_map) {
-		throw node_error(key);
-	}
+	if (!p_map) { throw node_error(key); }
 	auto it = p_map->find(key);
-	if (it == p_map->end()) {
-		throw node_error(key);
-	}
+	if (it == p_map->end()) { throw node_error(key); }
 	return *it->second;
 }
 
 node_t const& node_t::safe_get(std::string const& key) const {
 	static node_t const blank;
 	auto p_map = std::get_if<field_map_t>(&m_value);
-	if (!p_map) {
-		return blank;
-	}
+	if (!p_map) { return blank; }
 	auto it = p_map->find(key);
-	if (it == p_map->end()) {
-		return blank;
-	}
+	if (it == p_map->end()) { return blank; }
 	return *it->second;
 }
 
 node_t* node_t::find(std::string const& key) const {
 	auto p_map = std::get_if<field_map_t>(&m_value);
-	if (!p_map) {
-		return nullptr;
-	}
+	if (!p_map) { return nullptr; }
 	auto it = p_map->find(key);
-	if (it == p_map->end()) {
-		return nullptr;
-	}
+	if (it == p_map->end()) { return nullptr; }
 	return it->second.get();
 }
 
-void node_t::set(value_t&& value) {
-	m_value = std::move(value);
-}
+void node_t::set(value_t&& value) { m_value = std::move(value); }
 
 void node_t::set(array_fields_t<value_t>&& values) {
 	field_array_t fields;
-	for (value_t& value : values) {
-		add_node(fields, std::move(value));
-	}
+	for (value_t& value : values) { add_node(fields, std::move(value)); }
 	m_value = std::move(fields);
 }
 
 void node_t::set(map_fields_t<value_t>&& values) {
 	field_map_t fields;
-	for (auto& [key, value] : values) {
-		add_node(fields, key, std::move(value));
-	}
+	for (auto& [key, value] : values) { add_node(fields, key, std::move(value)); }
 	m_value = std::move(fields);
 }
 
@@ -479,21 +395,13 @@ node_type node_t::type() const noexcept {
 	}
 }
 
-bool node_t::is_scalar() const noexcept {
-	return type() == node_type::scalar;
-}
+bool node_t::is_scalar() const noexcept { return type() == node_type::scalar; }
 
-bool node_t::is_object() const noexcept {
-	return type() == node_type::object;
-}
+bool node_t::is_object() const noexcept { return type() == node_type::object; }
 
-bool node_t::is_array() const noexcept {
-	return type() == node_type::array;
-}
+bool node_t::is_array() const noexcept { return type() == node_type::array; }
 
-std::ostream& node_t::serialise(std::ostream& out, serial_opts_t const& opts, std::uint8_t indent) const {
-	return serialise_node(opts, out, indent, *this);
-}
+std::ostream& node_t::serialise(std::ostream& out, serial_opts_t const& opts, std::uint8_t indent) const { return serialise_node(opts, out, indent, *this); }
 
 std::string node_t::to_string(serial_opts_t const& opts) const {
 	std::stringstream str;
@@ -501,13 +409,9 @@ std::string node_t::to_string(serial_opts_t const& opts) const {
 	return str.str();
 }
 
-std::string converter_t<std::string>::operator()(std::string_view scalar) const noexcept {
-	return unescape(scalar);
-}
+std::string converter_t<std::string>::operator()(std::string_view scalar) const noexcept { return unescape(scalar); }
 
-std::int64_t converter_t<std::int64_t>::operator()(std::string_view scalar) const noexcept {
-	return std::atoll(scalar.data());
-}
+std::int64_t converter_t<std::int64_t>::operator()(std::string_view scalar) const noexcept { return std::atoll(scalar.data()); }
 
 std::uint64_t converter_t<std::uint64_t>::operator()(std::string_view scalar) const noexcept {
 	std::uint64_t ret;
