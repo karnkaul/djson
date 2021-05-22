@@ -156,23 +156,33 @@ struct convert_wrap_t<array_fields_t<T>> {
 				if constexpr (std::is_integral_v<T>) {
 					if constexpr (std::is_signed_v<T>) {
 						for (auto const& node : *p_arr) {
-							if (auto p_val = std::get_if<scalar_t>(&node->m_value)) { ret.push_back(static_cast<T>(converter_t<std::int64_t>{}(*p_val))); }
+							if (auto p_val = std::get_if<scalar_t>(&node->m_value)) {
+								ret.push_back(static_cast<T>(converter_t<std::int64_t>{}(*p_val)));
+							}
 						}
 					} else {
 						for (auto const& node : *p_arr) {
-							if (auto p_val = std::get_if<scalar_t>(&node->m_value)) { ret.push_back(static_cast<T>(converter_t<std::uint64_t>{}(*p_val))); }
+							if (auto p_val = std::get_if<scalar_t>(&node->m_value)) {
+								ret.push_back(static_cast<T>(converter_t<std::uint64_t>{}(*p_val)));
+							}
 						}
 					}
 				} else {
 					for (auto const& node : *p_arr) {
-						if (auto p_val = std::get_if<scalar_t>(&node->m_value)) { ret.push_back(static_cast<T>(converter_t<double>{}(*p_val))); }
+						if (auto p_val = std::get_if<scalar_t>(&node->m_value)) {
+							ret.push_back(static_cast<T>(converter_t<double>{}(*p_val)));
+						}
 					}
 				}
 			} else if constexpr (std::is_same_v<T, node_ptr>) {
-				for (auto const& node : *p_arr) { ret.push_back(node); }
+				for (auto const& node : *p_arr) {
+					ret.push_back(node);
+				}
 			} else {
 				for (auto const& node : *p_arr) {
-					if (auto p_val = std::get_if<scalar_t>(&node->m_value)) { ret.push_back(converter_t<T>{}(*p_val)); }
+					if (auto p_val = std::get_if<scalar_t>(&node->m_value)) {
+						ret.push_back(converter_t<T>{}(*p_val));
+					}
 				}
 			}
 		}
@@ -189,23 +199,33 @@ struct convert_wrap_t<map_fields_t<T>> {
 				if constexpr (std::is_integral_v<T>) {
 					if constexpr (std::is_signed_v<T>) {
 						for (auto const& [id, node] : *p_map) {
-							if (auto p_val = std::get_if<scalar_t>(&node->m_value)) { ret.emplace(id, static_cast<T>(converter_t<std::int64_t>{}(*p_val))); }
+							if (auto p_val = std::get_if<scalar_t>(&node->m_value)) {
+								ret.emplace(id, static_cast<T>(converter_t<std::int64_t>{}(*p_val)));
+							}
 						}
 					} else {
 						for (auto const& [id, node] : *p_map) {
-							if (auto p_val = std::get_if<scalar_t>(&node->m_value)) { ret.emplace(id, static_cast<T>(converter_t<std::uint64_t>{}(*p_val))); }
+							if (auto p_val = std::get_if<scalar_t>(&node->m_value)) {
+								ret.emplace(id, static_cast<T>(converter_t<std::uint64_t>{}(*p_val)));
+							}
 						}
 					}
 				} else {
 					for (auto const& [id, node] : *p_map) {
-						if (auto p_val = std::get_if<scalar_t>(&node->m_value)) { ret.emplace(id, static_cast<T>(converter_t<double>{}(*p_val))); }
+						if (auto p_val = std::get_if<scalar_t>(&node->m_value)) {
+							ret.emplace(id, static_cast<T>(converter_t<double>{}(*p_val)));
+						}
 					}
 				}
 			} else if constexpr (std::is_same_v<T, node_ptr>) {
-				for (auto const& [id, node] : *p_map) { ret.emplace(id, node); }
+				for (auto const& [id, node] : *p_map) {
+					ret.emplace(id, node);
+				}
 			} else {
 				for (auto const& [id, node] : *p_map) {
-					if (auto p_val = std::get_if<scalar_t>(&node->m_value)) { ret.emplace(id, converter_t<T>{}(*p_val)); }
+					if (auto p_val = std::get_if<scalar_t>(&node->m_value)) {
+						ret.emplace(id, converter_t<T>{}(*p_val));
+					}
 				}
 			}
 		}
