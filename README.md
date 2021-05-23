@@ -47,7 +47,7 @@ This is a "dumb simple" JSON parsing library, it does not conform fully to any s
 
 std::string const json = "{foo: \"fu bar\\b\", # a comment\n\t arr: [1, 2]}";
 if (auto n = dj::node_t::make(json)) {
-  node_t& node = *n;
+  dj::node_t& node = *n;
   std::string const foo = node["foo"].as<std::string>();  // fu ba
   std::vector<int> const arr = node["arr"].as<std::vector<int>>();  // {1, 2}
   // ...
