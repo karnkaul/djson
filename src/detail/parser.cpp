@@ -32,7 +32,10 @@ parser::node_t make_node(lexer& out_lexer) {
 				auto const peek = out_lexer.peek();
 				if (peek.empty()) { break; }
 				token = peek[0];
-				if (token->type == tk_type::square_close) { break; }
+				if (token->type == tk_type::square_close) {
+					out_lexer.advance();
+					break;
+				}
 				node.children.push_back(make_node(out_lexer));
 				if (token = out_lexer.advance(); !token || token->type != tk_type::comma) { break; }
 			}

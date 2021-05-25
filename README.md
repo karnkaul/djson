@@ -20,6 +20,7 @@ This is a "dumb simple" JSON parsing library, it does not conform fully to any s
 - Not meant for large files / deep trees (`~std::shared_ptr<node_t>()` will smash the stack)
 - Only tested with UTF-8 input
 - Exponent/hex/binary/etc literals not supported (will be parsed as strings)
+- Single quotes (`'`) are not escaped, parsed as regular text tokens
 
 ## Usage
 
