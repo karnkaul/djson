@@ -18,7 +18,7 @@ std::unordered_map<char, tk_type> const char_tokens = {
 
 constexpr bool new_line(char c) noexcept { return c == '\n' || c == '\r'; }
 
-constexpr bool quote(char c) noexcept { return c == '\'' || c == '"'; }
+constexpr bool quote(char c) noexcept { return c == '"'; }
 
 template <typename T>
 constexpr bool space(T t) noexcept {
@@ -117,8 +117,13 @@ lexer::scan_t lexer::next() {
 	substring_t sub{m_text, begin};
 	if (quote(sub.peek())) {
 		loc = sub.advance(1, loc);
-		auto ret = make_value(sub, ++begin, loc, [](substring_t const& s) { return quote(s.peek()) && !is_escaped(s.text, s.index); });
-		sub.index = ret.next_idx;
+		scan_t ret;
+		if (quote(sub.peek())) {
+			ret.token = make_token(begin, 0, loc, tk_type::value);
+		} else {
+			ret = make_value(sub, ++begin, loc, [](substring_t const& s) { return quote(s.peek()) && !is_escaped(s.text, s.index); });
+			sub.index = ret.next_idx;
+		}
 		assert(quote(sub.peek()));
 		loc = sub.advance(1, ret.next_loc);
 		auto const [l, i] = seek(loc, sub.index);
