@@ -1,3 +1,0 @@
-[submodule "include/str_format"]
-	path = include/kt/str_format
-	url = https://github.com/karnkaul/str-format
