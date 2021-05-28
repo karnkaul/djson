@@ -4,43 +4,6 @@ set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "")
 set(DJSON_VERSION 0.1.0.0 CACHE STRING "DJSON version" FORCE)
 project(djson VERSION ${DJSON_VERSION})
 
-if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
-	find_package(Git QUIET)
-		if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
-		message(STATUS "Updating git submodules...")
-		execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-			RESULT_VARIABLE UPDATE_SUBMODULES_RESULT
-		)
-		if(NOT UPDATE_SUBMODULES_RESULT EQUAL "0")
-			message(FATAL_ERROR "git submodule update failed!")
-		endif()
-	endif()
-endif()
-
-set(DJSON_PARSE_ERROR_ACTION UNWIND CACHE STRING "UNWIND/THROW/TERMINATE/IGNORE")
-set(DJSON_PARSE_ERROR_OUTPUT STDERR CACHE STRING "STDERR/STDOUT")
-
-if(${DJSON_PARSE_ERROR_ACTION} STREQUAL UNWIND)
-	set(PARSE_ERROR_ACTION 0)
-elseif(${DJSON_PARSE_ERROR_ACTION} STREQUAL THROW)
-	set(PARSE_ERROR_ACTION 1)
-elseif(${DJSON_PARSE_ERROR_ACTION} STREQUAL TERMINATE)
-	set(PARSE_ERROR_ACTION 2)
-elseif(${DJSON_PARSE_ERROR_ACTION} STREQUAL IGNORE)
-	set(PARSE_ERROR_ACTION 3)
-else()
-	message(FATAL_ERROR "Invalid DJSON_PARSE_ACTION_ERROR value: ${DJSON_PARSE_ERROR_ACTION}\nValid options: UNWIND, THROW, TERMINATE, IGNORE")
-endif()
-
-if(${DJSON_PARSE_ERROR_OUTPUT} STREQUAL STDERR)
-	set(PARSE_ERROR_OUTPUT 0)
-elseif(${DJSON_PARSE_ERROR_OUTPUT} STREQUAL STDOUT)
-	set(PARSE_ERROR_OUTPUT 1)
-else()
-	message(FATAL_ERROR "Invalid DJSON_PARSE_ERROR_OUTPUT value: ${DJSON_PARSE_ERROR_OUTPUT}\nValid options: STDERR, STDOUT")
-endif()
-
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.?pp")
 file(GLOB_RECURSE INCLUDES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.?pp")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${INCLUDES} ${SOURCES})
@@ -48,20 +11,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${INCLUDES} ${SOURCES})
 add_library(djson ${INCLUDES} ${SOURCES})
 add_library(djson::djson ALIAS djson)
 target_compile_features(djson PUBLIC cxx_std_17)
-target_include_directories(djson
-	PUBLIC
-		include
-	PRIVATE
-		src
-)
-target_compile_definitions(djson PUBLIC DJSON_PARSE_ERROR_ACTION=${PARSE_ERROR_ACTION} DJSON_PARSE_ERROR_OUTPUT=${PARSE_ERROR_OUTPUT})
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	target_compile_options(djson PRIVATE -fPIC)
-endif()
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	target_compile_options(djson PRIVATE /MP)
-	target_compile_definitions(djson PUBLIC _UNICODE)
-endif()
+target_include_directories(djson PUBLIC include PRIVATE src)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	target_compile_options(djson PRIVATE -Wextra -Wall -Werror=return-type $<$<NOT:$<CONFIG:Debug>>:-Werror>)
 endif()
