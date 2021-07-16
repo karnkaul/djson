@@ -1,5 +1,6 @@
 #pragma once
 #include <exception>
+#include <optional>
 #include <ostream>
 #include <sstream>
 #include <type_traits>
@@ -98,21 +99,31 @@ class json_t {
 	///
 	/// \brief Obtain value of object type corresponding to key, if present
 	///
-	json_t* find(std::string const& str) const noexcept;
+	json_t* find(std::string const& key) const noexcept;
 	///
 	/// \brief Obtain value of array type corresponding to index, if present
 	///
-	json_t* find(std::size_t idx) const noexcept;
+	json_t* find(std::size_t index) const noexcept;
+	///
+	/// \brief Obtain value as T of object type corresponding to key, if present
+	///
+	template <typename T>
+	std::optional<T> find_as(std::string const& key) const;
+	///
+	/// \brief Obtain value as T of object type corresponding to key, else fallback
+	///
+	template <typename T>
+	T get_as(std::string const& key, T const& fallback = {}) const;
 	///
 	/// \brief Obtain value of object type corresponding to key
 	/// Warning: throws not_found_exception if not present
 	///
-	json_t& operator[](std::string const& str) const noexcept(false);
+	json_t& operator[](std::string const& key) const noexcept(false);
 	///
 	/// \brief Obtain value of array type corresponding to index
 	/// Warning: throws not_found_exception if not present
 	///
-	json_t& operator[](std::size_t idx) const noexcept(false);
+	json_t& operator[](std::size_t index) const noexcept(false);
 
 	///
 	/// \brief Set value to null / boolean / number / string type
@@ -264,6 +275,18 @@ T json_t::as() const {
 	} else {
 		return detail::getter_t<T>{}(m_value);
 	}
+}
+
+template <typename T>
+std::optional<T> json_t::find_as(std::string const& key) const {
+	if (auto ret = find(key)) { return ret->as<T>(); }
+	return std::nullopt;
+}
+
+template <typename T>
+T json_t::get_as(std::string const& key, T const& fallback) const {
+	if (auto ret = find(key)) { return ret->as<T>(); }
+	return fallback;
 }
 
 template <typename T>
