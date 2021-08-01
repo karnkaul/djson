@@ -53,12 +53,12 @@ struct string_t {
 ///
 /// \brief Value type
 ///
-class json_t; // defined in json.hpp
+class json; // defined in json.hpp
 ///
 /// \brief Array type
 ///
 struct array_t {
-	using storage_t = std::vector<ptr<json_t>>;
+	using storage_t = std::vector<ptr<json>>;
 	static constexpr json_type type = json_type::array;
 
 	storage_t value;
@@ -67,7 +67,7 @@ struct array_t {
 /// \brief Object type
 ///
 struct object_t {
-	using storage_t = std::unordered_map<std::string, ptr<json_t>>;
+	using storage_t = std::unordered_map<std::string, ptr<json>>;
 	static constexpr json_type type = json_type::object;
 
 	storage_t value;

@@ -60,7 +60,7 @@ std::ostream& serialize_string(std::ostream& out, std::string_view str, bool quo
 	return out;
 }
 
-std::ostream& serialize_json(json_t const& json, serial_opts_t const& opts, std::ostream& out, std::uint8_t indent, bool last);
+std::ostream& serialize_json(json const& json, serial_opts_t const& opts, std::ostream& out, std::uint8_t indent, bool last);
 
 std::ostream& serialize_object(object_t::storage_t const& fields, std::ostream& out, serial_opts_t const& options, std::uint8_t indent) {
 	if (fields.empty()) {
@@ -73,7 +73,7 @@ std::ostream& serialize_object(object_t::storage_t const& fields, std::ostream& 
 		++t.indent;
 		std::size_t index = 0;
 		if (options.sort_keys) {
-			std::map<std::string, json_t const*> map;
+			std::map<std::string, json const*> map;
 			for (auto const& [key, json] : fields) { map[escape(key)] = json.get(); }
 			for (auto const& [key, json] : map) {
 				if (index > 0) { out << n; }
@@ -116,7 +116,7 @@ std::ostream& serialize_array(array_t::storage_t const& fields, std::ostream& ou
 	return out;
 }
 
-std::ostream& serialize_json(json_t const& json, serial_opts_t const& opts, std::ostream& out, std::uint8_t indent, bool last) {
+std::ostream& serialize_json(json const& json, serial_opts_t const& opts, std::ostream& out, std::uint8_t indent, bool last) {
 	switch (json.type()) {
 	case json_type::null: out << "null"; break;
 	case json_type::boolean: out << (std::get<boolean_t>(json.value()).value ? "true" : "false"); break;
@@ -130,13 +130,13 @@ std::ostream& serialize_json(json_t const& json, serial_opts_t const& opts, std:
 }
 } // namespace
 
-std::string json_t::result_t::to_string() const {
+std::string json::result_t::to_string() const {
 	std::stringstream str;
 	str << *this;
 	return str.str();
 }
 
-json_type json_t::type() const noexcept {
+json_type json::type() const noexcept {
 	if (std::holds_alternative<boolean_t>(m_value)) {
 		return json_type::boolean;
 	} else if (std::holds_alternative<number_t>(m_value)) {
@@ -152,7 +152,7 @@ json_type json_t::type() const noexcept {
 	}
 }
 
-json_t::result_t json_t::read(std::string_view text) {
+json::result_t json::read(std::string_view text) {
 	result_t ret;
 	auto result = detail::parser_t(text).parse();
 	if (!result.unexpected.empty()) {
@@ -175,14 +175,14 @@ json_t::result_t json_t::read(std::string_view text) {
 			}
 		}
 	}
-	if (result.json) {
-		m_value = std::move(result.json->m_value);
+	if (result.json_) {
+		m_value = std::move(result.json_->m_value);
 		ret.failure = false;
 	}
 	return ret;
 }
 
-json_t::result_t json_t::load(std::string const& path) {
+json::result_t json::load(std::string const& path) {
 	if (auto file = std::ifstream(path)) {
 		std::stringstream str;
 		str << file.rdbuf();
@@ -193,54 +193,54 @@ json_t::result_t json_t::load(std::string const& path) {
 	return {{{std::move(err), error_type::io}}, true};
 }
 
-std::ostream& json_t::serialize(std::ostream& out, serial_opts_t const& opts) const { return serialize_json(*this, opts, out, 0, true); }
+std::ostream& json::serialize(std::ostream& out, serial_opts_t const& opts) const { return serialize_json(*this, opts, out, 0, true); }
 
-std::string json_t::to_string(serial_opts_t const& opts) const {
+std::string json::to_string(serial_opts_t const& opts) const {
 	std::stringstream str;
 	serialize(str, opts);
 	return str.str();
 }
 
-bool json_t::save(std::string const& path) const {
+bool json::save(std::string const& path) const {
 	if (auto file = std::ofstream(path); file && file << *this) { return true; }
 	return false;
 }
 
-bool json_t::contains(std::string const& key) const noexcept {
+bool json::contains(std::string const& key) const noexcept {
 	if (auto obj = detail::to_t<object_t>(m_value)) { return obj->value.find(key) != obj->value.end(); }
 	return false;
 }
 
-bool json_t::contains(std::size_t index) const noexcept {
+bool json::contains(std::size_t index) const noexcept {
 	if (auto obj = detail::to_t<array_t>(m_value)) { return index < obj->value.size(); }
 	return false;
 }
 
-json_t* json_t::find(std::string const& str) const noexcept {
+json* json::find(std::string const& str) const noexcept {
 	if (auto obj = detail::to_t<object_t>(m_value)) {
 		if (auto it = obj->value.find(str); it != obj->value.end()) { return &*it->second; }
 	}
 	return nullptr;
 }
 
-json_t* json_t::find(std::size_t idx) const noexcept {
+json* json::find(std::size_t idx) const noexcept {
 	if (auto obj = detail::to_t<array_t>(m_value)) {
 		if (idx < obj->value.size()) { return &*obj->value[idx]; }
 	}
 	return nullptr;
 }
 
-json_t& json_t::operator[](std::string const& str) const {
+json& json::operator[](std::string const& str) const {
 	if (auto ret = find(str)) { return *ret; }
 	throw not_found_exception{};
 }
 
-json_t& json_t::operator[](std::size_t idx) const {
+json& json::operator[](std::size_t idx) const {
 	if (auto ret = find(idx)) { return *ret; }
 	throw not_found_exception{};
 }
 
-json_t& json_t::set(json_type type, std::string value) {
+json& json::set(json_type type, std::string value) {
 	switch (type) {
 	case json_type::null: m_value = null_t{}; break;
 	case json_type::boolean: m_value = boolean_t{value == "true"}; break;
@@ -250,30 +250,30 @@ json_t& json_t::set(json_type type, std::string value) {
 	return *this;
 }
 
-json_t& json_t::set(json_t value) {
+json& json::set(json value) {
 	m_value = std::move(value.m_value);
 	return *this;
 }
 
-json_t& json_t::push_back(json_t value) {
+json& json::push_back(json value) {
 	if (type() != json_type::array) { m_value = array_t{}; }
 	auto& array = std::get<array_t>(m_value);
-	array.value.push_back(detail::make<json_t>(std::move(value.m_value)));
+	array.value.push_back(detail::make<json>(std::move(value.m_value)));
 	return *array.value.back();
 }
 
-json_t& json_t::insert(std::string const& key, json_t value) {
+json& json::insert(std::string const& key, json value) {
 	if (type() != json_type::object) { m_value = object_t{}; }
 	auto& object = std::get<object_t>(m_value);
-	auto [it, _] = object.value.emplace(key, detail::make<json_t>(std::move(value.m_value)));
+	auto [it, _] = object.value.emplace(key, detail::make<json>(std::move(value.m_value)));
 	return *it->second;
 }
 
-std::ostream& operator<<(std::ostream& out, json_t const& json) { return json.serialize(out); }
+std::ostream& operator<<(std::ostream& out, json const& json) { return json.serialize(out); }
 
-std::ostream& operator<<(std::ostream& out, json_t::result_t const& result) {
+std::ostream& operator<<(std::ostream& out, json::result_t const& result) {
 	out << (result.failure ? "-- Failure" : (result.errors.empty() ? "== Success" : "++ Partial")) << '\n';
-	for (auto const& error : result.errors) { out << "  " << json_t::error_type_names[(std::size_t)error.type] << " error: " << error.message << '\n'; }
+	for (auto const& error : result.errors) { out << "  " << json::error_type_names[(std::size_t)error.type] << " error: " << error.message << '\n'; }
 	return out;
 }
 } // namespace dj

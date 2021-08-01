@@ -107,26 +107,26 @@ object_t parser_t::to<object_t>() {
 	return ret;
 }
 
-ptr<json_t> parser_t::value() {
-	ptr<json_t> ret;
+ptr<json> parser_t::value() {
+	ptr<json> ret;
 	switch (m_curr.type) {
-	case tk_type::null: ret = make<json_t>(null_t{}); break;
-	case tk_type::curlyl: ret = make<json_t>(to<object_t>()); break;
-	case tk_type::squarel: ret = make<json_t>(to<array_t>()); break;
-	case tk_type::string: ret = make<json_t>(to<string_t>()); break;
+	case tk_type::null: ret = make<json>(null_t{}); break;
+	case tk_type::curlyl: ret = make<json>(to<object_t>()); break;
+	case tk_type::squarel: ret = make<json>(to<array_t>()); break;
+	case tk_type::string: ret = make<json>(to<string_t>()); break;
 	case tk_type::etrue:
 	case tk_type::efalse: {
-		ret = make<json_t>(to<boolean_t>());
+		ret = make<json>(to<boolean_t>());
 		break;
 	}
 	case tk_type::eint:
 	case tk_type::efloat: {
-		ret = make<json_t>(to<number_t>());
+		ret = make<json>(to<number_t>());
 		break;
 	}
 	default: {
 		push_error({}, false);
-		ret = make<json_t>(null_t{});
+		ret = make<json>(null_t{});
 		break;
 	}
 	}
@@ -136,7 +136,7 @@ ptr<json_t> parser_t::value() {
 parser_t::result_t parser_t::parse() {
 	m_unexpected.clear();
 	result_t ret;
-	ret.json = value();
+	ret.json_ = value();
 	advance();
 	while (!eof(m_curr)) { push_error({tk_type::eof}); }
 	ret.unexpected = std::move(m_unexpected);

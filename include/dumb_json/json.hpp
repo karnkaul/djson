@@ -25,7 +25,7 @@ using map_t = query_t<object_t>;
 ///
 /// \brief Models a JSON value, provides primary API
 ///
-class json_t {
+class json {
   public:
 	enum class error_type { syntax, parse, io };
 	static constexpr std::string_view error_type_names[] = {"syntax", "parse", "io"};
@@ -41,11 +41,11 @@ class json_t {
 	///
 	/// \brief Default construct
 	///
-	json_t() = default;
+	json() = default;
 	///
 	/// \brief Construct using an existing value
 	///
-	explicit json_t(storage_t value) noexcept : m_value(std::move(value)) {}
+	explicit json(storage_t value) noexcept : m_value(std::move(value)) {}
 	///
 	/// \brief Obtain storage value
 	///
@@ -99,11 +99,11 @@ class json_t {
 	///
 	/// \brief Obtain value of object type corresponding to key, if present
 	///
-	json_t* find(std::string const& key) const noexcept;
+	json* find(std::string const& key) const noexcept;
 	///
 	/// \brief Obtain value of array type corresponding to index, if present
 	///
-	json_t* find(std::size_t index) const noexcept;
+	json* find(std::size_t index) const noexcept;
 	///
 	/// \brief Obtain value as T of object type corresponding to key, if present
 	///
@@ -118,38 +118,38 @@ class json_t {
 	/// \brief Obtain value of object type corresponding to key
 	/// Warning: throws not_found_exception if not present
 	///
-	json_t& operator[](std::string const& key) const noexcept(false);
+	json& operator[](std::string const& key) const noexcept(false);
 	///
 	/// \brief Obtain value of array type corresponding to index
 	/// Warning: throws not_found_exception if not present
 	///
-	json_t& operator[](std::size_t index) const noexcept(false);
+	json& operator[](std::size_t index) const noexcept(false);
 
 	///
 	/// \brief Set value to null / boolean / number / string type
 	///
 	template <typename T>
-	json_t& set(T t);
+	json& set(T t);
 	///
 	/// \brief Set value to null / boolean / number / string type
 	///
-	json_t& set(json_type type, std::string value);
+	json& set(json_type type, std::string value);
 	///
 	/// \brief Set value
 	///
-	json_t& set(json_t value);
+	json& set(json value);
 	///
 	/// \brief Set as array type and push value
 	///
-	json_t& push_back(json_t value);
+	json& push_back(json value);
 	///
 	/// \brief Set as object type and insert key / value
 	///
-	json_t& insert(std::string const& key, json_t value);
+	json& insert(std::string const& key, json value);
 	///
 	/// \brief Set as null type
 	///
-	json_t& clear() { return set(json_type::null, {}); }
+	json& clear() { return set(json_type::null, {}); }
 
 	///
 	/// \brief Default serialisation options
@@ -166,14 +166,14 @@ class json_t {
 ///
 /// \brief Error type and message
 ///
-struct json_t::error_t {
+struct json::error_t {
 	std::string message;
 	error_type type;
 };
 ///
 /// \brief Parse result
 ///
-struct json_t::result_t {
+struct json::result_t {
 	std::vector<error_t> errors;
 	bool failure = true;
 
@@ -184,17 +184,17 @@ struct json_t::result_t {
 ///
 /// \brief Output json value to stream
 ///
-std::ostream& operator<<(std::ostream& out, json_t const& json);
+std::ostream& operator<<(std::ostream& out, json const& json);
 ///
 /// \brief Output json result to stream
 ///
-std::ostream& operator<<(std::ostream& out, json_t::result_t const& result);
+std::ostream& operator<<(std::ostream& out, json::result_t const& result);
 
 // impl
 
 namespace detail {
 template <typename T>
-T const* to_t(json_t::storage_t const& value) noexcept {
+T const* to_t(json::storage_t const& value) noexcept {
 	return std::get_if<T>(&value);
 }
 
@@ -204,7 +204,7 @@ struct getter_t {
 	std::uint64_t to_uint(std::string const& text) const { return std::stoull(text); }
 	double to_double(std::string const& text) const { return std::stod(text); }
 
-	T operator()(json_t::storage_t const& value) const {
+	T operator()(json::storage_t const& value) const {
 		if constexpr (std::is_same_v<T, bool>) {
 			auto val = to_t<boolean_t>(value);
 			return val ? val->value : false;
@@ -226,13 +226,13 @@ struct getter_t {
 
 template <typename T>
 struct getter_t<std::vector<T>> {
-	std::vector<T> operator()(json_t::storage_t const& value) const {
+	std::vector<T> operator()(json::storage_t const& value) const {
 		std::vector<T> ret;
 		if (auto val = to_t<array_t>(value)) {
 			for (auto const& node : val->value) {
-				if constexpr (std::is_same_v<T, ptr<json_t>>) {
+				if constexpr (std::is_same_v<T, ptr<json>>) {
 					ret.push_back(node);
-				} else if constexpr (std::is_same_v<std::remove_const_t<T>, json_t*>) {
+				} else if constexpr (std::is_same_v<std::remove_const_t<T>, json*>) {
 					ret.push_back(node.get());
 				} else {
 					ret.push_back(getter_t<T>{}(node->m_value));
@@ -245,7 +245,7 @@ struct getter_t<std::vector<T>> {
 
 template <typename T>
 struct setter {
-	void operator()(json_t::storage_t& out, [[maybe_unused]] T t) const {
+	void operator()(json::storage_t& out, [[maybe_unused]] T t) const {
 		if constexpr (std::is_same_v<T, std::nullptr_t>) {
 			out = null_t{};
 		} else if constexpr (std::is_same_v<T, bool>) {
@@ -266,7 +266,7 @@ struct setter {
 } // namespace detail
 
 template <typename T>
-T json_t::as() const {
+T json::as() const {
 	if constexpr (std::is_same_v<T, map_t> || std::is_same_v<T, vec_t>) {
 		using v_t = std::conditional_t<std::is_same_v<T, map_t>, object_t, array_t>;
 		T ret;
@@ -278,19 +278,19 @@ T json_t::as() const {
 }
 
 template <typename T>
-std::optional<T> json_t::find_as(std::string const& key) const {
+std::optional<T> json::find_as(std::string const& key) const {
 	if (auto ret = find(key)) { return ret->as<T>(); }
 	return std::nullopt;
 }
 
 template <typename T>
-T json_t::get_as(std::string const& key, T const& fallback) const {
+T json::get_as(std::string const& key, T const& fallback) const {
 	if (auto ret = find(key)) { return ret->as<T>(); }
 	return fallback;
 }
 
 template <typename T>
-json_t& json_t::set(T t) {
+json& json::set(T t) {
 	detail::setter<T>{}(m_value, std::move(t));
 	return *this;
 }

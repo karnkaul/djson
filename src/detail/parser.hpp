@@ -24,7 +24,7 @@ class parser_t {
 	enum adv_t { on = 1 << 0, un = 1 << 1 };
 	inline static constexpr int adv_all = adv_t::on | adv_t::un;
 
-	ptr<json_t> value();
+	ptr<json> value();
 	void advance() noexcept;
 	void push_error(tk_list exp, bool adv = true);
 	bool check(tk_list exp) const noexcept;
@@ -39,7 +39,7 @@ class parser_t {
 };
 
 struct parser_t::result_t {
-	ptr<json_t> json;
+	ptr<json> json_;
 	std::vector<unexpect_t> unexpected;
 
 	bool error() const noexcept { return !unexpected.empty(); }
