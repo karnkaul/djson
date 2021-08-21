@@ -201,8 +201,8 @@ std::string json::to_string(serial_opts_t const& opts) const {
 	return str.str();
 }
 
-bool json::save(std::string const& path) const {
-	if (auto file = std::ofstream(path); file && file << *this) { return true; }
+bool json::save(std::string const& path, serial_opts_t const& opts) const {
+	if (auto file = std::ofstream(path); file && serialize(file, opts)) { return true; }
 	return false;
 }
 
@@ -228,6 +228,12 @@ json* json::find(std::size_t idx) const noexcept {
 		if (idx < obj->value.size()) { return &*obj->value[idx]; }
 	}
 	return nullptr;
+}
+
+json const& json::get(std::string const& key) const noexcept {
+	if (auto ret = find(key)) { return *ret; }
+	static json const fallback;
+	return fallback;
 }
 
 json& json::operator[](std::string const& str) const {

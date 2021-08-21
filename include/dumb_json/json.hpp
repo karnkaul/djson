@@ -25,8 +25,11 @@ using map_t = query_t<object_t>;
 ///
 /// \brief Models a JSON value, provides primary API
 ///
-class json {
+class json final {
   public:
+	template <typename T>
+	static constexpr bool is_settable = std::is_arithmetic_v<T> || std::is_convertible_v<T, std::string>;
+
 	enum class error_type { syntax, parse, io };
 	static constexpr std::string_view error_type_names[] = {"syntax", "parse", "io"};
 
@@ -42,6 +45,11 @@ class json {
 	/// \brief Default construct
 	///
 	json() = default;
+	///
+	/// \brief Construct and set t
+	///
+	template <typename T, typename = std::enable_if_t<is_settable<T>>>
+	explicit json(T t);
 	///
 	/// \brief Construct using an existing value
 	///
@@ -81,7 +89,7 @@ class json {
 	///
 	/// \brief Output value to file at path
 	///
-	bool save(std::string const& path) const;
+	bool save(std::string const& path, serial_opts_t const& opts = s_serial_opts) const;
 
 	///
 	/// \brief Obtain value as C++ type
@@ -114,6 +122,10 @@ class json {
 	///
 	template <typename T>
 	T get_as(std::string const& key, T const& fallback = {}) const;
+	///
+	/// \brief Obtain value associated with key, else null instance
+	///
+	json const& get(std::string const& key) const noexcept;
 	///
 	/// \brief Obtain value of object type corresponding to key
 	/// Warning: throws not_found_exception if not present
@@ -264,6 +276,11 @@ struct setter {
 	}
 };
 } // namespace detail
+
+template <typename T, typename>
+json::json(T t) {
+	if constexpr (!std::is_same_v<T, null_t>) { set(std::move(t)); }
+}
 
 template <typename T>
 T json::as() const {
