@@ -28,7 +28,7 @@ using map_t = query_t<object_t>;
 class json final {
   public:
 	template <typename T>
-	static constexpr bool is_settable = std::is_arithmetic_v<T> || std::is_convertible_v<T, std::string>;
+	static constexpr bool is_settable = std::is_arithmetic_v<T> || std::is_convertible_v<T, std::string> || std::is_constructible_v<std::string, T>;
 
 	enum class error_type { syntax, parse, io };
 	static constexpr std::string_view error_type_names[] = {"syntax", "parse", "io"};
@@ -262,8 +262,8 @@ struct setter {
 			out = null_t{};
 		} else if constexpr (std::is_same_v<T, bool>) {
 			out = boolean_t{t};
-		} else if constexpr (std::is_same_v<T, std::string>) {
-			out = string_t{std::move(t)};
+		} else if constexpr (std::is_constructible_v<std::string, T>) {
+			out = string_t{typename string_t::storage_t(std::move(t))};
 		} else {
 			std::stringstream str;
 			str << t;
