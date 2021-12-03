@@ -227,9 +227,9 @@ struct getter_t {
 				str >> ret;
 			}
 			return ret;
-		} else if constexpr (std::is_same_v<T, std::string>) {
+		} else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
 			auto val = to_t<string_t>(value);
-			return val ? val->value : std::string();
+			return val ? val->value : T{};
 		} else {
 			return T{};
 		}
