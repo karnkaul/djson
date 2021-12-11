@@ -11,7 +11,11 @@ target_include_directories(${PROJECT_NAME} PUBLIC include PRIVATE src)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_compile_options(${PROJECT_NAME} PRIVATE -Wextra -Wall -Werror=return-type $<$<NOT:$<CONFIG:Debug>>:-Werror>)
 endif()
-add_subdirectory(include/dumb_json)
+target_sources(${PROJECT_NAME} PRIVATE
+  include/dumb_json/json_type.hpp
+  include/dumb_json/json.hpp
+  include/dumb_json/serial_opts.hpp
+)
 add_subdirectory(src)
 get_target_property(sources ${PROJECT_NAME} SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${sources})
