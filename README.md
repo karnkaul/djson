@@ -1,6 +1,6 @@
 ## Dumb JSON
 
-[![Build status](https://ci.appveyor.com/api/projects/status/d236oefieo7mm9vx?svg=true)](https://ci.appveyor.com/project/karnkaul/djson)
+[![Build Status](https://github.com/karnkaul/djson/actions/workflows/ci.yml/badge.svg)](https://github.com/karnkaul/djson/actions/workflows/ci.yml)
 
 Dumb and lightweight JSON parsing library.
 
@@ -20,7 +20,7 @@ Dumb and lightweight JSON parsing library.
 
 ### Requirements
 
-- CMake 3.3
+- CMake 3.14
 - C++17 compiler (and stdlib)
 
 ### Steps
