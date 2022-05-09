@@ -1,5 +1,6 @@
 #pragma once
 #include <djson/detail.hpp>
+#include <djson/djson_version.hpp>
 #include <djson/result.hpp>
 #include <concepts>
 
