@@ -1,7 +1,7 @@
-#include <fstream>
-#include <iomanip>
 #include <detail/parser.hpp>
 #include <djson/json.hpp>
+#include <fstream>
+#include <iomanip>
 
 namespace dj {
 namespace detail {

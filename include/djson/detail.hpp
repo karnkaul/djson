@@ -9,9 +9,18 @@
 namespace dj {
 class json;
 using ujson = std::unique_ptr<json>;
+///
+/// \brief Type of a json instance
+///
 enum class value_type { null, boolean, number, string, array, object };
 
+///
+/// \brief Iteration view into a json instance as an array (of jsons)
+///
 class array_view;
+///
+/// \brief Iteration view into a json instance as an object (key-json pairs)
+///
 class object_view;
 
 namespace detail {
@@ -87,20 +96,20 @@ struct facade<bool> {
 };
 
 template <typename T>
-struct setter_t;
+struct to_value;
 
 template <>
-struct setter_t<std::string> {
+struct to_value<std::string> {
 	value_t operator()(std::string in) const { return {std::move(in), value_type::string}; }
 };
 
 template <>
-struct setter_t<std::string_view> {
+struct to_value<std::string_view> {
 	value_t operator()(std::string_view in) const { return {std::string(in), value_type::string}; }
 };
 
 template <>
-struct setter_t<bool> {
+struct to_value<bool> {
 	value_t operator()(bool const in) const {
 		auto ret = value_t{in ? "true" : "false", value_type::boolean};
 		return ret;
@@ -108,7 +117,8 @@ struct setter_t<bool> {
 };
 
 template <typename T>
-requires(std::integral<T> || std::floating_point<T>) struct setter_t<T> {
+	requires(std::integral<T> || std::floating_point<T>)
+struct to_value<T> {
 	value_t operator()(T const value) const {
 		char buf[16]{};
 		auto [ptr, ec] = std::to_chars(std::begin(buf), std::end(buf), value);

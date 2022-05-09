@@ -1,7 +1,7 @@
+#include <djson/json.hpp>
 #include <iostream>
 #include <span>
 #include <sstream>
-#include <djson/json.hpp>
 
 using namespace std::string_view_literals;
 
@@ -42,6 +42,11 @@ void bad_parse() {
     "foo": 3.14.2
 }
 	)";
+	result = json.read(text);
+	text = R"({ : 123 })";
+	result = json.read(text);
+	ASSERT_EQ(!result);
+	text = R"({ "" : 123 })";
 	result = json.read(text);
 	ASSERT_EQ(!result);
 }

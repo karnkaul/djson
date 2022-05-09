@@ -1,7 +1,7 @@
 #pragma once
-#include <concepts>
 #include <djson/detail.hpp>
 #include <djson/error.hpp>
+#include <concepts>
 
 namespace dj {
 template <typename Error>
@@ -145,7 +145,7 @@ json& json::set(T t) {
 	if constexpr (std::same_as<T, json>) {
 		m_value = std::move(t.m_value);
 	} else {
-		m_value = detail::setter_t<T>{}(std::move(t));
+		m_value = detail::to_value<T>{}(std::move(t));
 	}
 	return *this;
 }

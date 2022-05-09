@@ -1,8 +1,8 @@
 #pragma once
-#include <iostream>
-#include <sstream>
 #include <detail/scanner.hpp>
 #include <djson/json.hpp>
+#include <iostream>
+#include <sstream>
 
 namespace dj::detail {
 // TODO: remove?
@@ -128,7 +128,10 @@ struct parser_t {
 		consume(tt::lbrace);
 		auto ret = obj_t{};
 		while (current.token.type != tt::rbrace) {
+			if (current.token.type != tt::quoted) { throw error_t(current); }
+			auto const loc = current.loc;
 			auto key = make_quoted();
+			if (key.empty()) { throw error_t(scan_t{{"(empty)", tt::quoted}, loc}); }
 			consume(tt::colon);
 			ret.nodes.insert_or_assign(std::move(key), std::make_unique<json>(make_json(make_value())));
 			if (current.token.type == tt::rbrace) { break; }
