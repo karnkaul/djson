@@ -130,9 +130,9 @@ value_t& value_t::operator=(value_t const& rhs) {
 	return *this;
 }
 
-parse_error make_error(detail::error_t err) { return {std::move(err.text), err.loc.line, err.loc.col_index + 1}; }
+parse_result make_error(detail::error_t err) { return {std::move(err.text), err.loc.line, err.loc.col_index + 1}; }
 
-parse_error set_value(std::string_view text, value_t& out) {
+parse_result set_value(std::string_view text, value_t& out) {
 	auto parser = parser_t{text};
 	try {
 		out = parser.parse();
@@ -153,17 +153,13 @@ struct facade<object_view> {
 
 static auto const empty_v = json{};
 
-result<parse_error> json::read(std::string_view const text) {
-	auto ret = result<parse_error>{};
-	ret.err = set_value(text, m_value);
-	return ret;
-}
+parse_result json::read(std::string_view const text) { return set_value(text, m_value); }
 
-result<io_error> json::open(char const* path) {
-	auto ret = result<io_error>{};
+io_result json::open(char const* path) {
+	auto ret = io_result{};
 	auto file = std::ifstream(path, std::ios::in | std::ios::ate);
 	if (!file) {
-		ret.err.file_path = path;
+		ret.file_path = path;
 		return ret;
 	}
 	auto str = std::string{};
@@ -172,14 +168,14 @@ result<io_error> json::open(char const* path) {
 	file.seekg({});
 	file.read(str.data(), size);
 	if (str.empty()) {
-		ret.err.file_path = path;
+		ret.file_path = path;
 		return ret;
 	}
 	auto res = read(str);
-	if (res.err) {
-		static_cast<parse_error&>(ret.err) = std::move(res.err);
-		ret.err.file_path = path;
-		ret.err.file_contents = std::move(str);
+	if (res) {
+		static_cast<parse_result&>(ret) = std::move(res);
+		ret.file_path = path;
+		ret.file_contents = std::move(str);
 		return ret;
 	}
 	return ret;
@@ -240,6 +236,20 @@ std::string minify(std::string_view text) {
 std::ostream& operator<<(std::ostream& out, serializer const& wr) {
 	auto fmt = detail::formatter{out, 0, wr.pretty_print};
 	return detail::facade<decltype(fmt)>{}(fmt, wr.doc).out;
+}
+
+std::ostream& operator<<(std::ostream& out, parse_result const& result) {
+	if (!result) { out << "[djson] Unexpected token [" << result.token << "] at line " << result.line << " col " << result.column; }
+	return out;
+}
+
+std::ostream& operator<<(std::ostream& out, io_result const& result) {
+	if (!result.file_path.empty()) {
+		out << "[djson] Failed to read file contents [" << result.file_path << "]";
+	} else {
+		out << static_cast<parse_result>(result);
+	}
+	return out;
 }
 
 bool serializer::operator()(char const* path) const {

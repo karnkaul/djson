@@ -28,7 +28,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE include src)
 
 target_sources(${PROJECT_NAME} PRIVATE
   include/djson/detail.hpp
-  include/djson/error.hpp
+  include/djson/result.hpp
   include/djson/json.hpp
 )
 add_subdirectory(src)
