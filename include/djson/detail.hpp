@@ -11,21 +11,10 @@ class json;
 using ujson = std::unique_ptr<json>;
 enum class value_type { null, boolean, number, string, array, object };
 
-template <typename T>
-class ref {
-  public:
-	constexpr ref(T& t) : m_t(&t) {}
+class array_view;
+class object_view;
 
-	constexpr T& get() const { return *m_t; }
-	constexpr operator T&() const { return *m_t; }
-	constexpr operator ref<T const>() const { return {*m_t}; }
-
-  private:
-	T* m_t;
-};
-} // namespace dj
-
-namespace dj::detail {
+namespace detail {
 struct fifo_map_t {
 	std::unordered_map<std::string, std::size_t> indices{};
 	std::vector<std::pair<std::string, ujson>> entries{};
@@ -84,32 +73,17 @@ struct facade;
 
 template <>
 struct facade<std::string_view> {
-	std::string_view operator()(value_t const& value, std::string_view fallback = {}) const {
-		if (auto str = std::get_if<std::string>(&value.value)) { return *str; }
-		return fallback;
-	}
+	std::string_view operator()(json const& js, std::string_view fallback = {}) const;
 };
 
 template <>
 struct facade<std::string> {
-	std::string operator()(value_t const& value, std::string_view fallback = {}) const { return std::string(facade<std::string_view>{}(value, fallback)); }
+	std::string operator()(json const& js, std::string const& fallback = {}) const;
 };
 
 template <>
 struct facade<bool> {
-	bool operator()(value_t const& value, bool fallback = {}) const { return facade<std::string_view>{}(value) == "true" ? true : fallback; }
-};
-
-template <typename T>
-requires(std::integral<T> || std::floating_point<T>) struct facade<T> {
-	T operator()(value_t const& value, T fallback = {}) const {
-		auto str = facade<std::string_view>{}(value);
-		if (str.empty()) { return fallback; }
-		T out;
-		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), out);
-		if (ec != std::errc()) { return fallback; }
-		return out;
-	}
+	bool operator()(json const& js, bool fallback = {}) const;
 };
 
 template <typename T>
@@ -142,4 +116,135 @@ requires(std::integral<T> || std::floating_point<T>) struct setter_t<T> {
 		return {buf, value_type::number};
 	}
 };
-} // namespace dj::detail
+
+template <typename T>
+struct crtp_iterator {
+	using difference_type = std::ptrdiff_t;
+
+	T& get() { return static_cast<T&>(*this); }
+	T const& get() const { return static_cast<T const&>(*this); }
+
+	decltype(auto) operator*() const { return get().value(); }
+
+	T& operator++() {
+		get().increment();
+		return get();
+	}
+
+	T operator++(int) {
+		auto ret = get();
+		operator++();
+		return ret;
+	}
+
+	T& operator--() {
+		get().decrement();
+		return get();
+	}
+
+	T operator--(int) {
+		auto ret = get();
+		operator--();
+		return ret;
+	}
+};
+
+template <typename T, typename It>
+struct crtp_view {
+	using iterator = It;
+	using const_iterator = It;
+	using reverse_iterator = std::reverse_iterator<iterator>;
+	using const_reverse_iterator = reverse_iterator;
+
+	std::size_t size() const {
+		if (auto t = get().m_value) { return t->nodes.size(); }
+		return 0;
+	}
+
+	bool empty() const { return size() == 0; }
+
+	iterator begin() const {
+		auto ret = iterator{};
+		if (auto t = get().m_value) { ret.m_it = t->nodes.begin(); }
+		return ret;
+	}
+
+	iterator end() const {
+		auto ret = iterator{};
+		if (auto t = get().m_value) { ret.m_it = t->nodes.end(); }
+		return ret;
+	}
+
+	reverse_iterator rbegin() const { return reverse_iterator(end()); }
+	reverse_iterator rend() const { return reverse_iterator(begin()); }
+
+	T const& get() const { return static_cast<T const&>(*this); }
+};
+} // namespace detail
+
+class array_view_iterator : public detail::crtp_iterator<array_view_iterator> {
+  public:
+	using it_t = decltype(detail::arr_t{}.nodes)::const_iterator;
+	using value_type = json;
+	using reference = json&;
+	using pointer = json*;
+
+	array_view_iterator() = default;
+
+	bool operator==(array_view_iterator const& rhs) const { return m_it == rhs.m_it; }
+	pointer operator->() const { return std::addressof(value()); }
+	reference value() const { return **m_it; }
+	void increment() { ++m_it; }
+	void decrement() { --m_it; }
+
+  private:
+	it_t m_it{};
+	friend struct detail::crtp_view<array_view, array_view_iterator>;
+};
+
+class object_view_iterator : public detail::crtp_iterator<object_view_iterator> {
+  public:
+	using it_t = decltype(detail::obj_t{}.nodes)::const_iterator;
+	using value_type = std::pair<std::string_view, json&>;
+	using reference = value_type;
+
+	object_view_iterator() = default;
+
+	struct pointer {
+		reference self;
+		reference* operator->() { return &self; }
+	};
+
+	bool operator==(object_view_iterator const& rhs) const { return m_it == rhs.m_it; }
+	pointer operator->() const { return {value()}; }
+	reference value() const { return {m_it->first, *m_it->second}; }
+	void increment() { ++m_it; }
+	void decrement() { --m_it; }
+
+  private:
+	it_t m_it{};
+	friend struct detail::crtp_view<object_view, object_view_iterator>;
+};
+
+class array_view : public detail::crtp_view<array_view, array_view_iterator> {
+  public:
+	array_view() = default;
+	array_view(json const& json);
+
+	json const& operator[](std::size_t index) const;
+
+  private:
+	detail::arr_t const* m_value{};
+	friend struct crtp_view<array_view, array_view_iterator>;
+};
+
+class object_view : public detail::crtp_view<object_view, object_view_iterator> {
+  public:
+	object_view() = default;
+	object_view(json const& json);
+
+  private:
+	detail::obj_t const* m_value{};
+	friend struct crtp_view<object_view, object_view_iterator>;
+};
+} // namespace dj

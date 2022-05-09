@@ -139,6 +139,16 @@ parse_error set_value(std::string_view text, value_t& out) {
 	} catch (detail::error_t const& error) { return make_error(error); }
 	return {};
 }
+
+template <>
+struct facade<array_view> {
+	arr_t const* operator()(json const& json) const { return std::get_if<arr_t>(&json.m_value.value); }
+};
+
+template <>
+struct facade<object_view> {
+	obj_t const* operator()(json const& json) const { return std::get_if<obj_t>(&json.m_value.value); }
+};
 } // namespace detail
 
 static auto const empty_v = json{};
@@ -204,37 +214,11 @@ std::size_t json::container_size() const {
 	return {};
 }
 
-bool json::as_boolean(bool fallback) const { return detail::facade<bool>{}(m_value, fallback); }
-std::string json::as_string(std::string const& fallback) const { return detail::facade<std::string>{}(m_value, fallback); }
-std::string_view json::as_string_view(std::string_view fallback) const { return detail::facade<std::string_view>{}(m_value, fallback); }
+bool json::as_boolean(bool fallback) const { return detail::facade<bool>{}(*this, fallback); }
 
-std::vector<ref<json>> json::as_array() const { return detail::facade<std::vector<ref<json>>>{}(m_value); }
+std::string json::as_string(std::string const& fallback) const { return detail::facade<std::string>{}(*this, fallback); }
 
-std::unordered_map<std::string_view, ref<json>> json::as_object() const {
-	auto ret = std::unordered_map<std::string_view, ref<json>>{};
-	if (auto obj = std::get_if<detail::obj_t>(&m_value.value)) {
-		for (auto const& [key, js] : obj->nodes) { ret.insert_or_assign(key, *js); }
-	}
-	return ret;
-}
-
-std::vector<std::pair<std::string_view, ref<json>>> json::as_ordered_object() const {
-	auto ret = std::vector<std::pair<std::string_view, ref<json>>>{};
-	if (auto obj = std::get_if<detail::obj_t>(&m_value.value)) {
-		for (auto const& [key, js] : obj->nodes) { ret.push_back({key, *js}); }
-	}
-	return ret;
-}
-
-json::operator std::string() const {
-	if (auto str = std::get_if<std::string>(&m_value.value)) { return *str; }
-	return {};
-}
-
-json::operator std::string_view() const {
-	if (auto str = std::get_if<std::string>(&m_value.value)) { return *str; }
-	return {};
-}
+std::string_view json::as_string_view(std::string_view fallback) const { return detail::facade<std::string_view>{}(*this, fallback); }
 
 std::string json::serialize(bool pretty_print) const {
 	auto str = std::stringstream{};
@@ -265,19 +249,31 @@ bool serializer::operator()(char const* path) const {
 	return true;
 }
 
-std::vector<ref<json>> detail::facade<std::vector<ref<json>>>::operator()(value_t const& value) const {
-	auto ret = std::vector<ref<json>>{};
-	if (auto arr = std::get_if<arr_t>(&value.value)) {
-		for (auto const& js : arr->nodes) { ret.push_back(*js); }
-	}
-	return ret;
+std::string_view detail::facade<std::string_view>::operator()(json const& js, std::string_view fallback) const {
+	if (!js.is_string()) { return fallback; }
+	if (auto str = std::get_if<std::string>(&js.m_value.value)) { return *str; }
+	return fallback;
 }
 
-std::unordered_map<std::string, ref<json>> detail::facade<std::unordered_map<std::string, ref<json>>>::operator()(value_t const& value) const {
-	auto ret = std::unordered_map<std::string, ref<json>>{};
-	if (auto arr = std::get_if<obj_t>(&value.value)) {
-		for (auto const& [key, js] : arr->nodes) { ret.insert_or_assign(key, *js); }
-	}
-	return ret;
+std::string detail::facade<std::string>::operator()(json const& js, std::string const& fallback) const {
+	if (!js.is_string()) { return fallback; }
+	if (auto str = std::get_if<std::string>(&js.m_value.value)) { return *str; }
+	return fallback;
 }
+
+bool detail::facade<bool>::operator()(json const& js, bool fallback) const {
+	if (!js.is_boolean()) { return fallback; }
+	return std::get<std::string>(js.m_value.value) == "true";
+}
+
+array_view::array_view(json const& json) : m_value(detail::facade<array_view>{}(json)) {}
+
+json const& array_view::operator[](std::size_t index) const {
+	if (!m_value || index >= m_value->nodes.size()) { return empty_v; }
+	auto& ret = m_value->nodes[index];
+	if (!ret) { return empty_v; }
+	return *ret;
+}
+
+object_view::object_view(json const& json) : m_value(detail::facade<object_view>{}(json)) {}
 } // namespace dj

@@ -101,29 +101,21 @@ void whitespace() {
 
 template <typename T, typename U>
 constexpr bool range_cmp(T const& t, U const& u) {
-	if (std::size(t) != std::size(u)) { return false; }
+	if (std::size(t) != u.size()) { return false; }
 	for (std::size_t i = 0; i < std::size(t); ++i) {
-		if (t[i] != u[i]) { return false; }
+		if (t[i] != u[i].template as<typename T::value_type>()) { return false; }
 	}
 	return true;
-}
-
-template <typename T>
-std::vector<T> convert(std::vector<dj::ref<dj::json>> const& vec) {
-	auto ret = std::vector<T>{};
-	ret.reserve(vec.size());
-	for (dj::json const& json : vec) { ret.push_back(json.as<T>()); }
-	return ret;
 }
 
 void arrays() {
 	auto json = dj::json{};
 	auto result = json.read(R"([1, 2, 3])");
 	ASSERT_EQ(result && json.is_array());
-	ASSERT_EQ(range_cmp(std::array{1, 2, 3}, convert<int>(json.as_array())));
+	ASSERT_EQ(range_cmp(std::array{1, 2, 3}, json.as_array()));
 	auto copy = json;
 	ASSERT_EQ(copy.is_array());
-	ASSERT_EQ(range_cmp(std::array{1, 2, 3}, convert<int>(copy.as_array())));
+	ASSERT_EQ(range_cmp(std::array{1, 2, 3}, copy.as_array()));
 
 	result = json.read(R"(
 		[
@@ -141,11 +133,11 @@ void arrays() {
 	ASSERT_EQ(result && json.is_array());
 	auto vec = json.as_array();
 	ASSERT_EQ(vec.size() == 3);
-	ASSERT_EQ(vec[0].get().is_object());
-	ASSERT_EQ(vec[0].get()["true"].as_boolean());
-	ASSERT_EQ(vec[1].get().is_object());
-	ASSERT_EQ(vec[1].get()["42"].as_number<int>() == 42);
-	ASSERT_EQ(vec[1].get()["fubar"] == "fubar"sv);
+	ASSERT_EQ(vec[0].is_object());
+	ASSERT_EQ(vec[0]["true"].as_boolean());
+	ASSERT_EQ(vec[1].is_object());
+	ASSERT_EQ(vec[1]["42"].as_number<int>() == 42);
+	ASSERT_EQ(vec[1]["fubar"] == "fubar"sv);
 }
 
 void tuples() {
@@ -154,15 +146,15 @@ void tuples() {
 	ASSERT_EQ(result && json.is_array());
 	auto arr = json.as_array();
 	ASSERT_EQ(arr.size() == 3);
-	ASSERT_EQ(arr[0].get().as_boolean());
-	ASSERT_EQ(arr[1].get() == "foo"sv);
-	ASSERT_EQ(std::abs(arr[2].get().as_number<float>() - 3.14f) < 0.001f);
+	ASSERT_EQ(arr[0].as_boolean());
+	ASSERT_EQ(arr[1] == "foo"sv);
+	ASSERT_EQ(std::abs(arr[2].as_number<float>() - 3.14f) < 0.001f);
 	auto copy = json;
 	arr = copy.as_array();
 	ASSERT_EQ(arr.size() == 3);
-	ASSERT_EQ(arr[0].get().as_boolean());
-	ASSERT_EQ(arr[1].get() == "foo"sv);
-	ASSERT_EQ(std::abs(arr[2].get().as_number<float>() - 3.14f) < 0.001f);
+	ASSERT_EQ(arr[0].as_boolean());
+	ASSERT_EQ(arr[1] == "foo"sv);
+	ASSERT_EQ(std::abs(arr[2].as_number<float>() - 3.14f) < 0.001f);
 }
 
 void ordering() {
@@ -175,10 +167,13 @@ void ordering() {
 		}
 	)");
 	ASSERT_EQ(result && json.is_object());
-	auto ovec = json.as_ordered_object();
-	ASSERT_EQ(ovec[0].first == "42" && ovec[0].second.get().as_number<int>() == 42);
-	ASSERT_EQ(ovec[1].first == "fubar" && ovec[1].second.get().as_string_view() == "fubar");
-	ASSERT_EQ(ovec[2].first == "three" && ovec[2].second.get().as_number<int>() == 3);
+	auto ovec = json.as_object();
+	auto it = ovec.begin();
+	ASSERT_EQ(it != ovec.end() && it->first == "42" && it->second.as_number<int>() == 42);
+	++it;
+	ASSERT_EQ(it != ovec.end() && it->first == "fubar" && it->second.as_string_view() == "fubar");
+	++it;
+	ASSERT_EQ(it != ovec.end() && it->first == "three" && it->second.as_number<int>() == 3);
 }
 
 void sample_htmlc() {
@@ -201,8 +196,7 @@ void sample_htmlc() {
 	ASSERT_EQ(eq);
 }
 
-void serialize() {
-	static constexpr auto text = R"({
+inline constexpr auto object_v = R"({
 	"42": 42,
 	"fubar": "fubar",
 	"nest": {
@@ -212,13 +206,39 @@ void serialize() {
 	"three": 3
 }
 )"sv;
+
+inline constexpr auto array_v = R"([
+	"42",
+	"fubar",
+	{
+		"x": 1280,
+		"y": 720
+	},
+	true,
+	"last"
+]
+)"sv;
+
+void serialize() {
 	auto json = dj::json{};
-	auto result = json.read(text);
+	auto result = json.read(object_v);
 	ASSERT_EQ(result && json.is_object());
 	auto str = json.serialize(false);
-	ASSERT_EQ(str == dj::minify(text));
+	ASSERT_EQ(str == dj::minify(object_v));
 	str = json.serialize();
-	ASSERT_EQ(str == text);
+	ASSERT_EQ(str == object_v);
+}
+
+void iterate() {
+	auto json = dj::json{};
+	auto result = json.read(array_v);
+	ASSERT_EQ(result && json.container_size() == 5);
+	auto v = dj::array_view{json};
+	for (auto it = v.rbegin(); it != v.rend(); ++it) { std::cout << dj::serializer{*it, false} << '\n'; }
+
+	result = json.read(object_v);
+	ASSERT_EQ(result && json.container_size() == 4);
+	for (auto const& [key, json] : dj::object_view{json}) { std::cout << key << ": " << dj::serializer{json, false} << '\n'; }
 }
 } // namespace
 
@@ -232,4 +252,5 @@ int main() {
 	ordering();
 	sample_htmlc();
 	serialize();
+	iterate();
 }

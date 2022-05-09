@@ -49,17 +49,16 @@ class json {
 	T as_number(T fallback = {}) const;
 	std::string as_string(std::string const& fallback = {}) const;
 	std::string_view as_string_view(std::string_view fallback = {}) const;
-	std::vector<ref<json>> as_array() const;
-	std::unordered_map<std::string_view, ref<json>> as_object() const;
-	std::vector<std::pair<std::string_view, ref<json>>> as_ordered_object() const;
+	array_view as_array() const { return *this; }
+	object_view as_object() const { return *this; }
 	template <Literal T>
 	T as(T const& fallback = {}) const;
 
 	json& operator[](std::string const& key) { return value(key); }
 	json const& operator[](std::string const& key) const { return value(key); }
 
-	operator std::string() const;
-	operator std::string_view() const;
+	operator std::string() const { return as_string(); }
+	operator std::string_view() const { return as_string_view(); }
 
 	std::string serialize(bool pretty_print = true) const;
 	bool write(char const* path, bool pretty_print = true) const;
@@ -103,6 +102,18 @@ std::ostream& operator<<(std::ostream& out, serializer const& s);
 
 // impl
 
+template <Number T>
+struct detail::facade<T> {
+	T operator()(json const& js, T fallback = {}) const {
+		if (!js.is_number()) { return fallback; }
+		auto const& str = std::get<std::string>(js.m_value.value);
+		T out;
+		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), out);
+		if (ec != std::errc()) { return fallback; }
+		return out;
+	}
+};
+
 template <Element T>
 json::json(T t) {
 	set(std::move(t));
@@ -116,12 +127,12 @@ json& json::operator=(T t) {
 
 template <Number T>
 T json::as_number(T fallback) const {
-	return detail::facade<T>{}(m_value, fallback);
+	return detail::facade<T>{}(*this, fallback);
 }
 
 template <Literal T>
 T json::as(T const& fallback) const {
-	return detail::facade<T>{}(m_value, fallback);
+	return detail::facade<T>{}(*this, fallback);
 }
 
 inline json& json::set_null() {
@@ -161,14 +172,4 @@ std::unique_ptr<json> json::make_ujson(T t) {
 	uj->set(std::move(t));
 	return uj;
 }
-
-template <>
-struct detail::facade<std::vector<ref<json>>> {
-	std::vector<ref<json>> operator()(value_t const& value) const;
-};
-
-template <>
-struct detail::facade<std::unordered_map<std::string, ref<json>>> {
-	std::unordered_map<std::string, ref<json>> operator()(value_t const& value) const;
-};
 } // namespace dj
