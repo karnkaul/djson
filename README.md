@@ -27,7 +27,7 @@ Dumb and lightweight JSON parsing library.
 
 1. Clone repo to appropriate subdirectory, say `djson`
 1. Add library to project via: `add_subdirectory(djson)` and `target_link_libraries(foo djson::djson)`
-1. Use via: `#include <dumb_json/json.hpp>`
+1. Use via: `#include <djson/json.hpp>`
 
 ### Examples
 
@@ -49,7 +49,7 @@ Dumb and lightweight JSON parsing library.
 - `operator[](std::size_t)`: get the value corresponding to the passed index (throws on failure)
 
 ```cpp
-#include <dumb_json/json.hpp>
+#include <djson/json.hpp>
 
 // ...
 
@@ -70,7 +70,7 @@ Use `json::set()` to set a value, `json::push_back()` to set as array type and p
 
 **Serialising data**
 
-`json::serialize` (or `operator<<`) can be used to write to streams, `json::to_string()` to obtain a string. Customized `serial_opts_t` can be passed to each function (defined in `dumb_json/serial_opts.hpp`).
+`json::serialize` (or `operator<<`) can be used to write to streams, `json::to_string()` to obtain a string. Customized `serial_opts_t` can be passed to each function (defined in `djson/serial_opts.hpp`).
 
 ```cpp
 dj::json arr;
