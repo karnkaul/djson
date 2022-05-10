@@ -28,6 +28,7 @@ class json {
 	///
 	template <Element T>
 	json& operator=(T t);
+	json& operator=(char const* str) { return operator=(std::string(str)); }
 
 	///
 	/// \brief Read a JSON string

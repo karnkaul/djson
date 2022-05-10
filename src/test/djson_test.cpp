@@ -1,4 +1,5 @@
 #include <djson/json.hpp>
+#include <array>
 #include <iostream>
 #include <span>
 #include <sstream>
@@ -245,6 +246,17 @@ void iterate() {
 	ASSERT_EQ(result && json.container_size() == 4);
 	for (auto const& [key, json] : dj::object_view{json}) { std::cout << key << ": " << dj::serializer{json, false} << '\n'; }
 }
+
+void escapes() {
+	auto json = dj::json{};
+	auto result = json.read(R"({ "\\": "\\\n" })");
+	ASSERT_EQ(result);
+	ASSERT_EQ(json["\\"].as_string_view() == R"(\
+)");
+	json["key"] = "value";
+	auto str = json.serialize(false);
+	std::cout << str << '\n';
+}
 } // namespace
 
 int main() {
@@ -258,4 +270,5 @@ int main() {
 	sample_htmlc();
 	serialize();
 	iterate();
+	escapes();
 }

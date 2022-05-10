@@ -60,19 +60,25 @@ struct parser_t {
 	scanner_t scanner{};
 	scan_t current{};
 
-	static constexpr bool is_digit(char const ch) { return std::isdigit(static_cast<unsigned char>(ch)); }
+	static bool is_digit(char const ch) { return std::isdigit(static_cast<unsigned char>(ch)); }
 
 	static std::string unquote(std::string_view text) {
-		auto escaped{false};
 		auto str = std::stringstream{};
-		for (std::size_t index{1}; index + 1 < text.size(); ++index) {
-			auto const escape = index > 0 && text[index] == escape_v;
-			if (escape && !escaped) {
-				escaped = true;
-				continue;
+		text = text.substr(1, text.size() - 2);
+		auto const size = text.size();
+		for (std::size_t i{0}; i < size; ++i) {
+			char ch = text[i];
+			if (ch == escape_v && i + 1 < size) {
+				char const next = text[i + 1];
+				++i;
+				switch (next) {
+				case 'n': ch = '\n'; break;
+				case 't': ch = '\t'; break;
+				case 'b': continue;
+				default: ch = next; break;
+				}
 			}
-			str << text[index];
-			escaped = false;
+			str << ch;
 		}
 		return str.str();
 	}
@@ -84,7 +90,6 @@ struct parser_t {
 		auto ret = make_value();
 		ensure(tt::eof);
 		return ret;
-		return {};
 	}
 
 	void ensure(tt type) const {

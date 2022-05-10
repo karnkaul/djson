@@ -70,11 +70,11 @@ struct scanner_t {
 	std::size_t line{1};
 	std::size_t offset{};
 
-	static constexpr bool is_space(char const ch) { return std::isspace(static_cast<unsigned char>(ch)); }
+	static bool is_space(char const ch) { return std::isspace(static_cast<unsigned char>(ch)); }
 
 	constexpr loc_t make_loc() const { return {line, index - offset}; }
 
-	constexpr std::size_t skip_ws(std::string_view text, std::size_t start) {
+	std::size_t skip_ws(std::string_view text, std::size_t start) {
 		auto ret = start;
 		while (ret < text.size() && is_space(text[ret])) {
 			if (text[ret] == '\n') {
@@ -86,7 +86,7 @@ struct scanner_t {
 		return ret;
 	}
 
-	constexpr std::size_t complete_quoted(std::string_view text, std::size_t const start) {
+	std::size_t complete_quoted(std::string_view text, std::size_t const start) {
 		auto escaped{false};
 		auto end{start + 1};
 		while (end < text.size()) {
@@ -103,7 +103,7 @@ struct scanner_t {
 		return text.size();
 	}
 
-	constexpr std::size_t complete_unquoted(std::string_view text, std::size_t start) {
+	std::size_t complete_unquoted(std::string_view text, std::size_t start) {
 		auto end = start + 1;
 		for (; end < text.size(); ++end) {
 			auto const ch = text[end];
@@ -112,7 +112,7 @@ struct scanner_t {
 		return end;
 	}
 
-	constexpr scan_t scan() {
+	scan_t scan() {
 		if (index >= text.size()) { return {token_t::eof(), make_loc()}; }
 		auto ret = scan_t{};
 		auto start = skip_ws(text, index);
@@ -133,7 +133,7 @@ struct scanner_t {
 		return ret;
 	}
 
-	constexpr bool advance(scan_t& out) {
+	bool advance(scan_t& out) {
 		out = scan();
 		return out.token.type != tt::eof;
 	}

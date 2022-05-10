@@ -34,10 +34,29 @@ struct formatter {
 };
 } // namespace
 
+struct escape {
+	std::string_view text{};
+};
+
+formatter& operator<<(formatter& str, escape text) {
+	str << '\"';
+	for (char const ch : text.text) {
+		switch (ch) {
+		case '\n': str << R"(\n)"; continue;
+		case '\t': str << R"(\t)"; continue;
+		case '\\': str << R"(\\)"; continue;
+		case '\"': str << R"(\")"; continue;
+		default: break;
+		}
+		str << ch;
+	}
+	return str << '\"';
+}
+
 template <>
 struct facade<formatter> {
 	void write_unquoted(formatter& out, json const& js) const { out << std::get<lit_t>(js.m_value.value); }
-	void write_quoted(formatter& out, json const& js) const { out << '\"' << std::get<lit_t>(js.m_value.value) << '\"'; }
+	void write_quoted(formatter& out, json const& js) const { out << escape{std::get<lit_t>(js.m_value.value)}; }
 
 	void unquoted(formatter& out, json const& js, bool multi) const {
 		write_unquoted(out, js);
@@ -70,7 +89,7 @@ struct facade<formatter> {
 			auto const size = obj.nodes.size();
 			for (std::size_t i = 0; i < size; ++i) {
 				auto const& entry = obj.nodes[i];
-				out << '\"' << entry.first << "\":";
+				out << escape{entry.first} << ':';
 				out.space();
 				write(out, *obj.nodes[i].second, i + 1 < obj.nodes.size());
 			}

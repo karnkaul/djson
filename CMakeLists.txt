@@ -1,8 +1,11 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.17)
 set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "")
+set(CMAKE_DEBUG_POSTFIX -d)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(project_name djson)
-set(${project_name}_version 1.1.0)
+set(${project_name}_version 1.2.0)
 set(cxx_standard cxx_std_20)
 
 project(${project_name} VERSION ${${project_name}_version})
