@@ -12,10 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: init
+        run: sudo apt update -yqq && sudo apt install -yqq ninja-build g++-11
       - name: configure
-        run: cmake -S . -DCMAKE_BUILD_TYPE=Release -DCI_BUILD=ON -B build
+        run: cmake -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++-11 -DCI_BUILD=ON -B build
       - name: build
-        run: cmake --build build
+        run: cmake --build build -v
       - name: test
         run: cd build && ctest
   build-windows:
@@ -23,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: configure
-        run: cmake -S . -G "Visual Studio 16 2019" -DCI_BUILD=ON -B build
+        run: cmake -S . -G "Visual Studio 17 2022" -DCI_BUILD=ON -B build
       - name: build
         run: cmake --build build --config=Release
       - name: test
