@@ -81,6 +81,10 @@ void literals() {
 	copy = json;
 	ASSERT_EQ(copy.is_number());
 	ASSERT_EQ(std::abs(copy.as_number<float>() - 3.14f) < 0.001f);
+
+	result = json.read(R"(10.0e2)");
+	ASSERT_EQ(result && json.is_number());
+	ASSERT_EQ(std::abs(json.as_number<float>() - 1000.0f) < 0.001f);
 }
 
 void whitespace() {

@@ -5,18 +5,8 @@
 #include <sstream>
 
 namespace dj::detail {
-// TODO: remove?
-struct any_of {
-	tk_type_t value;
-
-	template <std::same_as<tk_type_t>... T>
-	constexpr bool operator()(T... t) const {
-		return (... || (value == t));
-	}
-};
-
 namespace {
-struct factory {};
+struct factory;
 } // namespace
 
 template <>
@@ -146,21 +136,21 @@ struct parser_t {
 		return ret;
 	}
 
-	value_type literal_type() const {
-		if (current.token.text.empty() || current.token.text == "null") { return value_type::null; }
-		if (current.token.text == "true" || current.token.text == "false") { return value_type::boolean; }
-		if (current.token.text[0] != '.' && !is_digit(current.token.text[0])) { throw error_t(current); }
-		auto decimal{false};
-		for (std::size_t i{1}; i < current.token.text.size(); ++i) {
-			auto const ch = current.token.text[i];
-			if (ch == '.') {
-				if (decimal) { throw error_t(current); }
-				decimal = true;
-				continue;
-			}
-			if (!is_digit(ch)) { throw error_t(current); }
-		}
+	value_type require_number() const {
+		auto text = current.token.text;
+		if (text[0] == '-') { text = text.substr(1); }					// ignore minus
+		if (text.empty() || text[0] == '.') { throw error_t{current}; } // require digit before decimal
+		float discard;
+		auto [ptr, ec] = std::from_chars(text.data(), text.data() + text.size(), discard);
+		if (ec != std::errc() || ptr != text.data() + text.size()) { throw error_t{current}; }
 		return value_type::number;
+	}
+
+	value_type literal_type() const {
+		auto text = current.token.text;
+		if (text.empty() || text == "null") { return value_type::null; }
+		if (text == "true" || text == "false") { return value_type::boolean; }
+		return require_number();
 	}
 
 	value_t make_literal() {

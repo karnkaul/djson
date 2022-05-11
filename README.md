@@ -18,7 +18,7 @@
 
 ## Limitations
 
-- Exponent/hex/binary literals not supported
+- Hex/binary literals not supported
 - Only tested with single-byte characters
 
 ## Usage

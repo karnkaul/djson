@@ -12,5 +12,5 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 
 if(DJSON_INSTALL)
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/djson/djson_version.hpp" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/djson)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/djson/djson_version.hpp" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/djson")
 endif()
