@@ -1,6 +1,7 @@
 #pragma once
 #include <djson/detail.hpp>
 #include <djson/djson_version.hpp>
+#include <djson/from_chars.hpp>
 #include <djson/result.hpp>
 #include <concepts>
 
@@ -188,7 +189,7 @@ struct detail::facade<T> {
 		if (!js.is_number()) { return fallback; }
 		auto const& str = std::get<std::string>(js.m_value.value);
 		T out;
-		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), out);
+		auto [ptr, ec] = detail::from_chars(str.data(), str.data() + str.size(), out);
 		if (ec != std::errc()) { return fallback; }
 		return out;
 	}

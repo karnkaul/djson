@@ -5,7 +5,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(project_name djson)
-set(${project_name}_version 1.2.1)
+set(${project_name}_version 1.2.2)
 set(cxx_standard cxx_std_20)
 
 project(${project_name} VERSION ${${project_name}_version})
@@ -31,8 +31,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE include src)
 
 target_sources(${PROJECT_NAME} PRIVATE
   include/djson/detail.hpp
-  include/djson/result.hpp
   include/djson/json.hpp
+  include/djson/result.hpp
+  include/djson/from_chars.hpp
 )
 add_subdirectory(src)
 get_target_property(sources ${PROJECT_NAME} SOURCES)
