@@ -1,5 +1,0 @@
-#pragma once
-
-namespace dj {
-inline constexpr auto version_v{"@PROJECT_VERSION@"};
-}

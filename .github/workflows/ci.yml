@@ -13,20 +13,24 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: init
-        run: sudo apt update -yqq && sudo apt install -yqq ninja-build g++-11
-      - name: configure
-        run: cmake -S . -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++-11 -DCI_BUILD=ON -B build
-      - name: build
-        run: cmake --build build -v
+        run: sudo apt install -yqq ninja-build g++-11
+      - name: configure gcc
+        run: cmake -S . --preset=default -B build -DCMAKE_CXX_COMPILER=g++-11
+      - name: configure clang
+        run: cmake -S . --preset=ninja-clang -B clang
+      - name: build gcc
+        run: cmake --build build --config=Release
+      - name: build clang
+        run: cmake --build clang --config=Release
       - name: test
-        run: cd build && ctest
+        run: cd build && ctest -C Release
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
       - name: configure
-        run: cmake -S . -G "Visual Studio 17 2022" -DCI_BUILD=ON -B build
+        run: cmake -S . --preset=vs22 -B build
       - name: build
         run: cmake --build build --config=Release
       - name: test
-        run: cd build && ctest --config=Release
+        run: cd build && ctest -C Release
