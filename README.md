@@ -1,4 +1,4 @@
-# djson v1.2
+# djson v2.0
 
 ## Dumb and lightweight JSON parsing library.
 
@@ -7,14 +7,16 @@
 ## Features
 
 - First-in/first-out object maps
-- Fast conversion of strings to numbers (using `std::from_chars`)
-- Copiable `json` objects
-- Lightweight `array_view` and `object_view` "containers" for iteration
-- Support to view strings stored internally via `std::string_view`s
-- Supports heterogenous arrays
-- Supports escaped text (`\\`, `\"`, `\b`, `\t`, `\n`)
-- Supports building tree from scratch
-- Serialization, pretty-print
+- Fast conversion of strings to numbers using `std::from_chars`
+- Copiable `Json` objects
+- Proxy containers for array/object iteration
+- `std::string_view` interface to minimize redundant `std::string` copies
+- Heterogenous arrays
+- Escaped text (`\\`, `\"`, `\b`, `\t`, `\n`)
+- Implicit construction for nulls, booleans, numbers, strings
+- Serialization, pretty-print (default)
+- Customization points for `from_json` and `to_json`
+- Build tree from scratch
 
 ## Limitations
 
@@ -23,152 +25,145 @@
 
 ## Usage
 
+`class Json` is the primary type around which the entire library's interface is designed. Use the static member function `Json::parse()` to attempt to parse text into a `Json` object:
+
+```cpp
+constexpr auto text = R"({ "foo": "party", "universe": 42 })";
+auto const json = dj::Json::parse(text);
+assert(!json.is_null());
+```
+
+Check if a key exists as an object via `contains()`. Access objects at keys via `operator[]`; non-existent keys return null:
+
+```cpp
+assert(json.contains("foo"));
+auto const& foo = json["foo"];
+auto const& universe = json["universe"];
+```
+
+Convert to a C++ type via `as_*()`:
+
+```cpp
+auto const foo_value = foo.as_string();
+auto const universe_value = universe.as<int>();
+assert(foo_value == "party" && universe_value == 42);
+```
+
+Iterate over arrays via `array_view()`:
+
+```cpp
+constexpr auto text = R"([ 1, 2, 3, 4, 5 ])";
+auto const json = dj::Json::parse(text);
+assert(json[1].as<int>() == 2);
+
+auto const get_sum = [](dj::Json const& j) {
+  int total{};
+  for (auto const& i : j.array_view()) { total += i.as<int>(); }
+  return total;
+};
+auto const sum = get_sum(json);
+assert(sum == 15);
+```
+
+Iterate over objects via `object_view()` (iterators dereference to proxy objects). Check for keys via `contains()`:
+
+```cpp
+constexpr auto text = R"({ "Mercury": 0, "Venus": 0, "Earth": 1, "Mars": 2 })";
+auto const json = dj::Json::parse(text);
+assert(json.contains("Earth"));
+
+auto moons = std::unordered_map<std::string, std::uint32_t>{};
+for (auto const [key, count] : json.object_view()) { moons[std::string{key}] = count.as<std::uint32_t>(); }
+assert(moons["Earth"] == 1);
+```
+
+Serialize to strings / output streams:
+
+```cpp
+std::string const serialized = to_string(json);
+std::cout << json;
+json.serialize_to(output_file, /*indent_spacing =*/ 0); // minify
+```
+
+Read from / write to files:
+
+```cpp
+auto const json = dj::Json::from_file("path/to/file.json");
+// ...
+if (json.to_file("path/to/file.json")) { /* success */ }
+```
+
+Parse your own types:
+
+```cpp
+namespace foo {
+struct Item {
+  std::string name{};
+  int weight{};
+
+  bool operator==(Item const&) const = default;
+};
+
+void from_json(dj::Json const& json, Item& out) {
+  from_json(json["name"], out.name);
+  from_json(json["weight"], out.weight);
+}
+
+void to_json(dj::Json& out, Item const& item) {
+  to_json(out["name"], item.name);
+  to_json(out["weight"], item.weight);
+}
+} // namespace foo
+
+auto const src = foo::Item{
+  .name = "Orb",
+  .weight = 5,
+};
+auto json = dj::Json{};
+to_json(json, src);
+auto dst = foo::Item{};
+from_json(json, dst);
+assert(src == dst);
+```
+
+Declarations of all customization points (`from_json` and `to_json`) must be visible in all translation units that include `json.hpp`, else the program will be ill formed (ODR violation).
+
+### Properties of class Json
+
+- Lightweight (size of one pointer)
+- Zero overhead default construction (does nothing)
+- Supports move and copy semantics
+- Moved-from objects can be reused
+- Contains tree of itself
+- Uses `std::from_chars<double>` and `std::make_unique_for_overwrite` if available
+  - Falls back to `std::strtod` and `std::make_unique` if not (eg GCC 10)
+- Proxy containers (returned by `.*_view()`) are non-copiable and non-moveable
+  - They are intended for local scope usage only, storing them is unwise
+  - Iterators propagate `Json` / container `const`-ness
+- Each instance holds a variant (internal) of supported JSON types, including arrays and objects/maps
+- There is no internal thread synchronization: 
+  - Reading a `Json` from multiple threads is ok - operate on a `const` object to enforce this invariant
+  - If any thread writes / uses (non-const) `operator[]`, external synchronziation will be required across _all_ threads
+
+## Building
+
 ### Requirements
 
-- CMake 3.17
+- CMake 3.18
 - C++20 compiler (and stdlib)
 
-### Quickstart
+### Integration
 
-1. Clone/Fetch repo to appropriate subdirectory, say `djson`
-1. Add library to project via: `add_subdirectory(djson)` and `target_link_libraries(foo djson::djson)`
-1. Use via: `#include <djson/json.hpp>`
+`djson` uses CMake, and supports the following workflows:
 
-#### JSON payload: path/to.json
+1. Clone/Fetch repo to subdirectory in project, use `add_subdirectory`
+1. Build and install `djson` to some location, use `find_package(djson CONFIG)` and add install path to `CMAKE_PREFIX_PATH` during configuration
+1. Copy sources, setup include paths, compiler options, build and install manually (not recommended)
 
-```json
-{
-  "text": "djson",
-  "position": {
-    "x": 200,
-    "y": 500
-  },
-  "type": "opaque",
-  "visible": true
-}
-```
-
-#### Parse into custom struct
+Once integrated, use in any source file via:
 
 ```cpp
-struct vec2 {float x, y; };
-
-struct custom_data {
-  enum class type_t { opaque, transparent };
-
-  std::string text{};
-  vec2 position{};
-  type_t type{};
-  bool visible{};
-};
-
-// ...
-
-auto json = dj::json{};
-// read file and parse text
-auto result = json.read("path/to.json");
-if (!result) {
-  // handle error
-}
-auto make_vec2 = [](json const& json, vec2 const fallback) {
-  return vec2{json["x"].as_number<float>(fallback.x), json["y"].as_number<float>(fallback.y)};
-};
-auto data = custom_data{
-  .text = json["text"], // implicit conversion to string
-  .position = make_vec2(json["position"], {}),
-  .type = json["type"].as_string_view() == "transparent" ? custom_data::type_t::transparent : custom_data::type_t::opaque,
-  .visible = json["visible"].as_boolean(),
-};
-```
-
-### API
-
-#### Basics
-
-`dj::json` models a JSON value, and is the "top of the tree": an instance owns all its leaf nodes. This is important for two reasons:
-1. You should probably not use this with gargantuan JSONs: the stack might overflow / smash.
-1. All parent instances must remain alive as long as their nodes are being examined.
-
-```cpp
-{
-  auto root = dj::json{};
-  // load value into root
-
-  // use root within scope
-}
-// root and sub-jsons destroyed here
-```
-
-`json`s are natively copiable, though this rarely needed.
-
-A single `json` instance may be one of the following `value_type`s (obtained via `.type()`), and the corresponding C++ types:
-- `null`: no associated C++ type; default constructed `json`
-- `boolean`: `bool`
-- `number`: all integral and floating point types
-- `string`: `std::string` (can also be viewed as `std::string_view`)
-- `array`: internal type, can be viewed as `array_view`
-- `object`: internal type, can be viewed as `object_view`
-
-```cpp
-dj::value_type type = json.type();
-bool is_array = json.is_array();
-```
-
-`djson` never throws any exceptions (intentionally).
-
-#### Subscripting
-
-An `object` type `json` can be subscripted via `json["key"]`, which will return a (const) reference to the corresponding `json`. A particular key's presence can be checked for via `.contains(key)`. Keys will never be empty (or duplicated), but values can be. `Literal`s are `boolean`s, `number`s, and `string`s, which can be obtained directly via corresponding `.as_*()` functions.
-
-```cpp
-auto v = some_struct{
-  json["key"], // implicit conversion to std::string / std::string_view
-  json["boolean"].as_boolean(),
-  json["int"].as_number<int>(42), // custom fallback
-  json["position"]["x"].as<float>(),
-  json["position"]["y"].as<float>(),
-};
-```
-
-Accessing non-existent keys inserts a new null `json` associated with it, and returns a reference to it (like `std` maps); `const` overloads return a const reference to a local static null `json` instance.
-
-#### Views and iteration
-
-`array` and `object` types can be iterated over via `as_array()` / `as_object()`, which return an `array_view` / `object_view` respectively. Array views are like spans, where each iterator points to a `json`. Object view iterators dereference to a wrapper type instead: `std::pair<std::string_view, json&>`.
-
-```cpp
-for (auto& json : root.as_array()) {
-  // ...
-}
-
-for (auto [key, json] : root.as_object()) { // note: not auto&
-  // ...
-}
-```
-An `array_view` can also be subscripted via `json[index]`, though this is generally not as useful. Out-of-bounds indices will return a null instance.
-
-#### Serialization
-
-`json` supports basic serialization via the `serializer` wrapper, which has one option: `pretty_print` - inserts spaces and indents. A `json` instance can also be set to a custom `Element` (`Literal` or another `json`) via `.set()` / `operator=`, which can be useful for building documents programmatically.
-
-```cpp
-json["key"] = "value";
-std::cout << dj::serializer{json};
-bool const written = dj::serializer{json, false}("path/to.json");
-```
-
-#### Misc
-
-`djson` supports CMake install and generates versioned package config. In other words, it can be installed anywhere via CMake:
-
-```
-cmake --install /path/to/djson/build --prefix=/path/to/install
-```
-
-And located via `find_package(djson)` in another project in its own build-tree:
-
-```
-cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/install
+#include <djson/json.hpp>
 ```
 
 ## Contributing

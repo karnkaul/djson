@@ -1,256 +1,369 @@
 #pragma once
-#include <djson/detail.hpp>
-#include <djson/djson_version.hpp>
-#include <djson/from_chars.hpp>
-#include <djson/result.hpp>
+#include <djson/build_version.hpp>
+#include <djson/parse_error.hpp>
 #include <concepts>
+#include <memory>
+#include <string>
 
 namespace dj {
-template <typename T>
-concept Number = !std::same_as<T, bool> && (std::integral<T> || std::floating_point<T>);
+template <typename Type>
+concept Numeric = (std::integral<Type> && !std::same_as<Type, bool>) || std::floating_point<Type>;
 
-template <typename T>
-concept Literal = std::integral<T> || std::floating_point<T> || std::same_as<T, std::string> || std::same_as<T, std::string_view>;
+template <typename Type>
+concept Stringy = std::convertible_to<Type, std::string_view>;
 
-template <typename T>
-concept Element = Literal<T> || std::same_as<T, json>;
+struct Boolean {
+	bool value{};
 
-class json {
+	explicit constexpr operator bool() const { return value; }
+	bool operator==(Boolean const&) const = default;
+};
+
+inline constexpr auto true_v = Boolean{true};
+inline constexpr auto false_v = Boolean{false};
+
+template <typename Type>
+concept Primitive = std::same_as<Type, bool> || std::same_as<Type, Boolean> || Numeric<Type> || Stringy<Type>;
+
+class Json;
+
+std::string to_string(Json const& json);
+std::ostream& operator<<(std::ostream& out, Json const& json);
+
+///
+/// \brief Library provided from_json overload for Primitives
+///
+template <Primitive T>
+void from_json(Json const& json, T& out, T const& fallback = T{});
+
+///
+/// \brief Library provided to_json overload for Primitives
+///
+template <Primitive T>
+void to_json(Json& out, T const& t);
+
+class Json {
   public:
-	json() = default;
+	class ObjectProxy;
+	class ArrayProxy;
+
+	Json() noexcept;
+	Json(Json&&) noexcept;
+	Json(Json const&);
+	Json& operator=(Json const) noexcept;
+	~Json() noexcept;
 
 	///
-	/// \brief Set this instance to Literal t
+	/// \brief Probibit native bool entirely
 	///
-	template <Literal T>
-	explicit json(T t);
-	///
-	/// \brief Assign this instance as Element t
-	///
-	template <Element T>
-	json& operator=(T t);
-	json& operator=(char const* str) { return operator=(std::string(str)); }
+	Json(bool) = delete;
 
 	///
-	/// \brief Read a JSON string
+	/// \brief Attempt to parse text into a Json instance
+	/// \returns Json value/tree if successfully parsed, null if a parse error was encountered
 	///
-	parse_result read(std::string_view text);
+	static Json parse(std::string_view text, ParseError::Handler* handler = {});
 	///
-	/// \brief Open file at path and read it as a JSON string
+	/// \brief Attempt to parse text in a file at path into a Json instance
+	/// \returns Json value/tree if file opened and text successfully parsed, null otherwise
 	///
-	io_result open(char const* path);
+	static Json from_file(char const* path, ParseError::Handler* handler = {});
 
-	value_type type() const { return m_value.type; }
-	bool is_null() const { return type() == value_type::null; }
-	bool is_boolean() const { return type() == value_type::boolean; }
-	bool is_number() const { return type() == value_type::number; }
-	bool is_string() const { return type() == value_type::string; }
-	bool is_array() const { return type() == value_type::array; }
-	bool is_object() const { return type() == value_type::object; }
+	explicit(false) Json(std::nullptr_t);
+	explicit(false) Json(Boolean boolean);
 
-	///
-	/// \brief Check if value_type is object and it contains key
-	///
-	bool contains(std::string const& key) const;
-	///
-	/// \brief Obtain reference to instance associated with key
-	///
-	/// Sets instance as object type if not so
-	/// Inserts a null instance for key if not present
-	///
-	json& value(std::string const& key);
-	///
-	/// \brief Obtain const reference to instance associated with key
-	///
-	/// Returns null instance if not value_type is not object or if key not present
-	///
-	json const& value(std::string const& key) const;
-	///
-	/// \brief Returns size of array/object; only meaningful for corresponding value_types
-	///
-	std::size_t container_size() const;
+	template <Numeric T>
+	explicit(false) Json(T const t) : Json{AsNumber{}, std::to_string(t)} {}
 
-	///
-	/// \brief Obtain value as a boolean (or fallback if value_type mismatch)
-	///
-	bool as_boolean(bool fallback = {}) const;
-	///
-	/// \brief Obtain value as a number (or fallback if value_type mismatch)
-	///
-	template <Number T>
-	T as_number(T fallback = {}) const;
-	///
-	/// \brief Obtain value as a string (or fallback if value_type mismatch)
-	///
-	std::string as_string(std::string const& fallback = {}) const;
-	///
-	/// \brief Obtain value as a string_view (or fallback if value_type mismatch)
-	///
-	std::string_view as_string_view(std::string_view fallback = {}) const;
-	///
-	/// \brief View value as an array (a span of json&)
-	///
-	array_view as_array() const { return *this; }
-	///
-	/// \brief View value as an object (a span of pair<string_view, json&>)
-	///
-	object_view as_object() const { return *this; }
-	///
-	/// \brief Obtain copy of value as a Literal
-	///
-	template <Literal T>
-	T as(T const& fallback = {}) const;
+	template <Stringy T>
+	explicit(false) Json(T const& string) : Json{AsString{}, std::string_view{string}} {}
+
+	[[nodiscard]] bool is_null() const;
+	[[nodiscard]] bool is_bool() const;
+	[[nodiscard]] bool is_number() const;
+	[[nodiscard]] bool is_string() const;
+	[[nodiscard]] bool is_object() const;
+	[[nodiscard]] bool is_array() const;
+
+	[[nodiscard]] Boolean as_bool(Boolean fallback = {}) const;
+	[[nodiscard]] std::int64_t as_i64(std::int64_t fallback = {}) const;
+	[[nodiscard]] std::uint64_t as_u64(std::uint64_t fallback = {}) const;
+	[[nodiscard]] double as_double(double fallback = {}) const;
+	[[nodiscard]] std::string_view as_string(std::string_view fallback = {}) const;
+
+	template <Primitive Type>
+	Type as(Type fallback = {}) const {
+		return get_as<Type>(fallback);
+	}
 
 	///
-	/// \brief Obtain reference to instance associated with key
+	/// \brief Iterate over mutable elements as an array (empty if not an array)
 	///
-	/// Sets instance as object type if not so
-	/// Inserts a null instance for key if not present
+	ArrayProxy& array_view();
 	///
-	json& operator[](std::string const& key) { return value(key); }
+	/// \brief Iterate over immutable elements as an array (empty if not an array)
 	///
-	/// \brief Obtain const reference to instance associated with key
+	ArrayProxy const& array_view() const;
 	///
-	/// Returns null instance if not value_type is not object or if key not present
+	/// \brief Iterate over mutable key-value pairs as an object (empty if not an object)
 	///
-	json const& operator[](std::string const& key) const { return value(key); }
+	ObjectProxy& object_view();
+	///
+	/// \brief Iterate over immutable key-value pairs as an object (empty if not an object)
+	///
+	ObjectProxy const& object_view() const;
 
 	///
-	/// \brief Serialize value to a string (using serializer)
+	/// \brief Insert value into array (converted to array if not one)
 	///
-	std::string serialize(bool pretty_print = true) const;
+	Json& push_back(Json value);
 	///
-	/// \brief Write value to file path (using serializer)
+	/// \brief Access mutable value at index in array (returns null if not an array / out of bounds)
 	///
-	bool write(char const* path, bool pretty_print = true) const;
+	Json& operator[](std::size_t index);
+	///
+	/// \brief Access immutable value at index in array (returns null if not an array / out of bounds)
+	///
+	Json const& operator[](std::size_t index) const;
 
 	///
-	/// \brief Set value as null
+	/// \brief Check if key exists as an object (returns false if not an object)
 	///
-	json& set_null();
+	[[nodiscard]] bool contains(std::string_view key) const;
 	///
-	/// \brief Set value as Element t
+	/// \brief Assign value to key as an object (converted to object if not one)
 	///
-	template <Element T>
-	json& set(T t);
+	Json& assign(std::string_view key, Json value);
 	///
-	/// \brief Push Element t into value as array
+	/// \brief Access mutable value at key in object (returns null if not an object / out of bounds)
 	///
-	template <Element T>
-	json& push_back(T t);
+	Json& operator[](std::string_view key);
 	///
-	/// \brief Insert [key, t] into value as object
+	/// \brief Access immutable value at key in object (returns null if not an object / out of bounds)
 	///
-	template <Element T>
-	json& insert(std::string key, T t);
+	Json const& operator[](std::string_view key) const;
 
-	operator std::string() const { return as_string(); }
-	operator std::string_view() const { return as_string_view(); }
+	///
+	/// \brief Serialize contained value into a string
+	///
+	std::string serialized(std::size_t indent_spacing = 2) const;
+	///
+	/// \brief Serialize contained value to out
+	///
+	std::ostream& serialize_to(std::ostream& out, std::size_t indent_spacing = 2) const;
+	///
+	/// \brief Serialize contained value to text file at path
+	///
+	bool to_file(char const* path, std::size_t indent_spacing = 2) const;
+
+	///
+	/// \brief Check if value is not null
+	///
+	explicit operator bool() const { return !is_null(); }
+
+	void swap(Json& rhs) noexcept;
 
   private:
-	json(detail::value_t&& value) noexcept : m_value(std::move(value)) {}
+	struct Construct {};
+	struct AsNumber {};
+	struct AsString {};
+	class IterBase;
+	class ArrayIter;
+	class ObjectIter;
+	struct Impl;
+	struct Serializer;
+
+	Json(Construct);
+	Json(AsNumber, std::string number);
+	Json(AsString, std::string_view string);
 
 	template <typename T>
-	static std::unique_ptr<json> make_ujson(T t);
-
-	detail::value_t m_value{};
+	T from_number(T fallback) const;
 
 	template <typename T>
-	friend struct detail::facade;
+	T get_as(T const& fallback) const;
+
+	std::unique_ptr<Impl> m_impl{};
 };
 
-///
-/// \brief Serializer for a json instance
-///
-/// Pass an instance to operator<<(std::ostream&, serializer) to write to it
-/// Call operator() to write to file path
-///
-struct serializer {
-	json const& doc;
-	bool pretty_print{true};
+class Json::IterBase {
+  public:
+	IterBase() = default;
+	IterBase& operator++();
+	bool operator==(IterBase const&) const = default;
 
-	bool operator()(char const* path) const;
+  protected:
+	IterBase(Impl* impl, std::size_t index) : m_impl{impl}, m_index{index} {}
+	Impl* m_impl{};
+	std::size_t m_index{};
 };
 
-///
-/// \brief Remove all whitespace
-///
-std::string minify(std::string_view text);
+class Json::ArrayIter : public IterBase {
+  public:
+	using value_type = Json;
+	ArrayIter() = default;
+	Json& operator*() const;
+	ArrayIter& operator++() { return (++static_cast<IterBase&>(*this), *this); }
 
-std::ostream& operator<<(std::ostream& out, serializer const& s);
-std::ostream& operator<<(std::ostream& out, parse_result const& result);
-std::ostream& operator<<(std::ostream& out, io_result const& result);
+  private:
+	using IterBase::IterBase;
+	friend class Json;
+};
+
+class Json::ObjectIter : public IterBase {
+  public:
+	using value_type = std::pair<std::string_view, Json&>;
+	ObjectIter() = default;
+	value_type operator*() const;
+	ObjectIter& operator++() { return (++static_cast<IterBase&>(*this), *this); }
+
+  private:
+	using IterBase::IterBase;
+	friend class ObjectProxy;
+};
+
+class Json::ArrayProxy {
+	template <bool Const>
+	class Iter;
+
+  public:
+	using iterator = Iter<false>;
+	using const_iterator = Iter<true>;
+
+	ArrayProxy() = default;
+	ArrayProxy& operator=(ArrayProxy&&) = delete;
+
+	bool empty() const;
+	std::size_t size() const;
+
+	iterator begin();
+	iterator end();
+	const_iterator begin() const;
+	const_iterator end() const;
+
+  private:
+	ArrayProxy(Impl* impl) : m_impl{impl} {}
+
+	ArrayIter array_begin() const;
+	ArrayIter array_end() const;
+
+	Impl* m_impl{};
+	friend class Json;
+};
+
+class Json::ObjectProxy {
+	template <bool Const>
+	class Iter;
+
+  public:
+	using iterator = Iter<false>;
+	using const_iterator = Iter<true>;
+
+	ObjectProxy() = default;
+	ObjectProxy& operator=(ObjectProxy&&) = delete;
+
+	bool empty() const;
+	std::size_t size() const;
+
+	iterator begin();
+	iterator end();
+	const_iterator begin() const;
+	const_iterator end() const;
+
+  private:
+	template <typename T>
+	struct PtrProxy {
+		T value;
+		T* operator->() { return &value; }
+	};
+
+	ObjectProxy(Impl* impl) : m_impl{impl} {}
+
+	ObjectIter object_begin() const;
+	ObjectIter object_end() const;
+
+	Impl* m_impl{};
+	friend class Json;
+};
+
+template <bool Const>
+class Json::ArrayProxy::Iter {
+  public:
+	using value_type = Json;
+	using pointer = std::conditional_t<Const, value_type const*, value_type*>;
+	using reference = std::conditional_t<Const, value_type const&, value_type&>;
+
+	Iter() = default;
+
+	reference operator*() const { return *m_it; }
+	pointer operator->() const { return &*m_it; }
+
+	Iter& operator++() { return (++m_it, *this); }
+
+	bool operator==(Iter const&) const = default;
+
+  private:
+	Iter(ArrayIter it) : m_it{it} {}
+	ArrayIter m_it{};
+	friend class Json;
+};
+
+template <bool Const>
+class Json::ObjectProxy::Iter {
+  public:
+	using value_type = std::conditional_t<Const, std::pair<std::string_view, Json const&>, std::pair<std::string_view, Json&>>;
+	using reference = value_type;
+	using pointer = PtrProxy<value_type>;
+
+	Iter() = default;
+
+	reference operator*() const { return *m_it; }
+	pointer operator->() const { return {*m_it}; }
+
+	Iter& operator++() { return (++m_it, *this); }
+
+	bool operator==(Iter const&) const = default;
+
+  private:
+	Iter(ObjectIter it) : m_it{it} {}
+	ObjectIter m_it{};
+	friend class ObjectProxy;
+};
 
 // impl
 
-template <Number T>
-struct detail::facade<T> {
-	T operator()(json const& js, T fallback = {}) const {
-		if (!js.is_number()) { return fallback; }
-		auto const& str = std::get<std::string>(js.m_value.value);
-		T out;
-		auto [ptr, ec] = detail::from_chars(str.data(), str.data() + str.size(), out);
-		if (ec != std::errc()) { return fallback; }
-		return out;
-	}
-};
-
-template <Literal T>
-json::json(T t) {
-	set(std::move(t));
-}
-
-template <Element T>
-json& json::operator=(T t) {
-	set(std::move(t));
-	return *this;
-}
-
-template <Number T>
-T json::as_number(T fallback) const {
-	return detail::facade<T>{}(*this, fallback);
-}
-
-template <Literal T>
-T json::as(T const& fallback) const {
-	return detail::facade<T>{}(*this, fallback);
-}
-
-inline json& json::set_null() {
-	m_value = detail::null_v;
-	return *this;
-}
-
-template <Element T>
-json& json::set(T t) {
-	if constexpr (std::same_as<T, json>) {
-		m_value = std::move(t.m_value);
-	} else {
-		m_value = detail::to_value<T>{}(std::move(t));
-	}
-	return *this;
-}
-
-template <Element T>
-json& json::push_back(T t) {
-	if (!is_array()) { m_value = {detail::arr_t{}, value_type::array}; }
-	auto& arr = std::get<detail::arr_t>(m_value.value);
-	arr.nodes.push_back(make_ujson(std::move(t)));
-	return *arr.nodes.back();
-}
-
-template <Element T>
-json& json::insert(std::string key, T t) {
-	if (!is_object()) { m_value = {detail::obj_t{}, value_type::object}; }
-	auto& obj = std::get<detail::obj_t>(m_value.value);
-	auto [it, _] = obj.nodes.insert_or_assign(key, make_ujson(std::move(t)));
-	return *it->second;
-}
-
 template <typename T>
-std::unique_ptr<json> json::make_ujson(T t) {
-	auto uj = std::make_unique<json>();
-	uj->set(std::move(t));
-	return uj;
+T Json::get_as(T const& fallback) const {
+	if constexpr (std::same_as<T, bool> || std::same_as<T, Boolean>) {
+		return as_bool();
+	} else if constexpr (std::integral<T>) {
+		if constexpr (std::is_signed_v<T>) {
+			return static_cast<T>(as_i64(static_cast<std::int64_t>(fallback)));
+		} else {
+			return static_cast<T>(as_u64(static_cast<std::uint64_t>(fallback)));
+		}
+	} else if constexpr (std::floating_point<T>) {
+		return static_cast<T>(as_double(fallback));
+	} else if constexpr (std::same_as<T, std::string>) {
+		return std::string{as_string(std::string_view{fallback})};
+	} else if constexpr (std::convertible_to<std::string_view, T>) {
+		return static_cast<T>(as_string(std::string_view{fallback}));
+	} else {
+		return fallback;
+	}
+}
+
+template <Primitive T>
+void from_json(Json const& json, T& out, T const& fallback) {
+	out = json.as<T>(fallback);
+}
+
+template <Primitive T>
+void to_json(Json& out, T const& t) {
+	if constexpr (std::same_as<T, bool>) {
+		out = Json{Boolean{t}};
+	} else {
+		out = Json{t};
+	}
 }
 } // namespace dj
