@@ -63,6 +63,10 @@ struct Scanner {
 		if (match('.')) {
 			while (!at_end() && is_digit(peek())) { advance(); }
 		}
+		if (match('e') || match('E')) {
+			if (peek() == '+' || peek() == '-') { advance(); }
+			while (!at_end() && is_digit(peek())) { advance(); }
+		}
 		out = make_token(Token::Type::eNumber);
 		return true;
 	}
