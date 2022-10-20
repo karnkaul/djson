@@ -190,6 +190,9 @@ void parse_object() {
 	EXPECT(foo["c"].is_number());
 	EXPECT(foo["c"].as_i64() == -42);
 	EXPECT(json["bar"].is_null());
+
+	json = dj::Json::parse(R"({ "description": "Debug shader code by \"printing\" any values of interest to the debug callback or stdout." })");
+	EXPECT(!json.is_null());
 }
 } // namespace
 

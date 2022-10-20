@@ -74,7 +74,10 @@ struct Scanner {
 	constexpr bool try_string(Token& out) {
 		if (text[current.span.first] != '\"') { return false; }
 		current.span.first = current.span.last;
-		while (!at_end() && peek() != '\"') { advance(); }
+		while (!at_end()) {
+			if (peek() == '\"' && prev() != '\\') { break; }
+			advance();
+		}
 		out = make_token(Token::Type::eString);
 		advance();
 		current.span.first = current.span.last;
@@ -101,6 +104,7 @@ struct Scanner {
 	}
 
 	constexpr char advance() { return text[current.span.last++]; }
+	constexpr char prev() const { return current.span.last == 0 ? '\0' : text[current.span.last - 1]; }
 	constexpr char peek() const { return at_end() ? null_v : text[current.span.last]; }
 	constexpr bool at_end() const { return current.span.last >= text.size(); }
 };
