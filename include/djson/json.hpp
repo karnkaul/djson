@@ -292,6 +292,7 @@ class Json::ArrayProxy::Iter {
 	using value_type = Json;
 	using pointer = std::conditional_t<Const, value_type const*, value_type*>;
 	using reference = std::conditional_t<Const, value_type const&, value_type&>;
+	using difference_type = std::ptrdiff_t;
 
 	Iter() = default;
 
@@ -299,6 +300,11 @@ class Json::ArrayProxy::Iter {
 	pointer operator->() const { return &*m_it; }
 
 	Iter& operator++() { return (++m_it, *this); }
+	Iter operator++(int) {
+		auto ret = *this;
+		++(*this);
+		return ret;
+	}
 
 	bool operator==(Iter const&) const = default;
 
@@ -314,6 +320,7 @@ class Json::ObjectProxy::Iter {
 	using value_type = std::conditional_t<Const, std::pair<std::string_view, Json const&>, std::pair<std::string_view, Json&>>;
 	using reference = value_type;
 	using pointer = PtrProxy<value_type>;
+	using difference_type = std::ptrdiff_t;
 
 	Iter() = default;
 
@@ -321,6 +328,11 @@ class Json::ObjectProxy::Iter {
 	pointer operator->() const { return {*m_it}; }
 
 	Iter& operator++() { return (++m_it, *this); }
+	Iter operator++(int) {
+		auto ret = *this;
+		++(*this);
+		return ret;
+	}
 
 	bool operator==(Iter const&) const = default;
 
