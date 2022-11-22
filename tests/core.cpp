@@ -66,6 +66,12 @@ void floating() {
 	copy = json;
 	EXPECT(copy.is_number());
 	EXPECT(eq(copy.as_double(), json.as_double()));
+	json = dj::Json::parse("2.98e8");
+	EXPECT(json.is_number());
+	EXPECT(eq(json.as_double(), 2.98e8));
+	json = dj::Json::parse("6.626e-34");
+	EXPECT(json.is_number());
+	EXPECT(eq(json.as_double(), 6.626e-34));
 }
 
 void empty_string() {
@@ -184,6 +190,9 @@ void parse_object() {
 	EXPECT(foo["c"].is_number());
 	EXPECT(foo["c"].as_i64() == -42);
 	EXPECT(json["bar"].is_null());
+
+	json = dj::Json::parse(R"({ "description": "Debug shader code by \"printing\" any values of interest to the debug callback or stdout." })");
+	EXPECT(!json.is_null());
 }
 } // namespace
 
