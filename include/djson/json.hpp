@@ -347,7 +347,7 @@ class Json::ObjectProxy::Iter {
 template <typename T>
 T Json::get_as(T const& fallback) const {
 	if constexpr (std::same_as<T, bool> || std::same_as<T, Boolean>) {
-		return as_bool();
+		return as_bool().value;
 	} else if constexpr (std::integral<T>) {
 		if constexpr (std::is_signed_v<T>) {
 			return static_cast<T>(as_i64(static_cast<std::int64_t>(fallback)));
