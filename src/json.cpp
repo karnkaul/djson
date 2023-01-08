@@ -420,7 +420,11 @@ Json& Json::push_back(Json value) {
 		m_impl->payload = Impl::Array{};
 		array = &std::get<Impl::Array>(m_impl->payload);
 	}
-	array->push_back(Impl::make(std::move(value.m_impl->payload)));
+	if (value.m_impl) {
+		array->push_back(Impl::make(std::move(value.m_impl->payload)));
+	} else {
+		array->emplace_back();
+	}
 	return array->back();
 }
 
