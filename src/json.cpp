@@ -568,10 +568,13 @@ auto Json::ObjectProxy::end() -> iterator { return object_end(); }
 auto Json::ObjectProxy::begin() const -> const_iterator { return object_begin(); }
 auto Json::ObjectProxy::end() const -> const_iterator { return object_end(); }
 
-auto Json::ObjectProxy::object_begin() const -> ObjectIter { return {m_impl, 0U}; }
+auto Json::ObjectProxy::object_begin() const -> ObjectIter {
+	if (!m_impl || !std::holds_alternative<Impl::Object>(m_impl->payload)) { return {}; }
+	return ObjectIter{m_impl, 0U};
+}
 auto Json::ObjectProxy::object_end() const -> ObjectIter {
 	if (!m_impl || !std::holds_alternative<Impl::Object>(m_impl->payload)) { return {}; }
-	return {m_impl, std::get<Impl::Object>(m_impl->payload).keys.size()};
+	return ObjectIter{m_impl, std::get<Impl::Object>(m_impl->payload).keys.size()};
 }
 } // namespace dj
 
