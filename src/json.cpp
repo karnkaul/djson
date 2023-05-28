@@ -361,6 +361,7 @@ Json::Json(Json const& rhs) : m_impl{Impl::clone(rhs.m_impl)} {}
 void Json::swap(Json& rhs) noexcept { std::swap(m_impl, rhs.m_impl); }
 
 Json Json::parse(std::string_view const text, ParseError::Handler* handler) {
+	if (text.empty()) { return {}; }
 	if (!handler) { handler = &Printer::instance(); }
 	auto scanner = detail::Scanner{text};
 	auto parser = Impl::Parser{*handler, scanner};
