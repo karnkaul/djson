@@ -147,7 +147,7 @@ struct Json::Impl {
 	struct Parser;
 
 	static Json make(Payload payload) {
-		auto ret = Json{Construct{}};
+		auto ret = Json{};
 		ret.m_impl->payload = std::move(payload);
 		return ret;
 	}
@@ -279,7 +279,7 @@ struct Json::Impl::Parser {
 
 	Json parse() {
 		advance();
-		auto ret = Json{Construct{}};
+		auto ret = Json{};
 		try {
 			ret.m_impl->payload = make_payload();
 		} catch (Error) {}
@@ -351,8 +351,7 @@ struct Json::Impl::Parser {
 	bool at_end() const { return current.type == Type::eEof; }
 };
 
-Json::Json() noexcept = default;
-Json::Json(Construct) : m_impl{std::make_unique<Impl>()} {}
+Json::Json() : m_impl{std::make_unique<Impl>()} {}
 Json::Json(Json&& rhs) noexcept : Json() { swap(rhs); }
 Json& Json::operator=(Json rhs) noexcept { return (swap(rhs), *this); }
 Json::~Json() noexcept = default;
@@ -385,11 +384,11 @@ Json Json::from_file(char const* path, ParseError::Handler* handler) {
 	return parse(bytes, handler);
 }
 
-Json::Json(AsNumber, std::string number) : Json(Construct{}) { m_impl->payload = Impl::Number{std::move(number)}; }
-Json::Json(AsString, std::string_view const string) : Json(Construct{}) { m_impl->payload = unescape(string); }
+Json::Json(AsNumber, std::string number) : Json() { m_impl->payload = Impl::Number{std::move(number)}; }
+Json::Json(AsString, std::string_view const string) : Json() { m_impl->payload = unescape(string); }
 
-Json::Json(std::nullptr_t) : Json(Construct{}) { m_impl->payload = Impl::Null{}; }
-Json::Json(Boolean const boolean) : Json(Construct{}) { m_impl->payload = boolean; }
+Json::Json(std::nullptr_t) : Json() { m_impl->payload = Impl::Null{}; }
+Json::Json(Boolean const boolean) : Json() { m_impl->payload = boolean; }
 
 bool Json::is_null() const { return !m_impl || std::holds_alternative<Impl::Null>(m_impl->payload); }
 bool Json::is_bool() const { return m_impl && std::holds_alternative<Boolean>(m_impl->payload); }

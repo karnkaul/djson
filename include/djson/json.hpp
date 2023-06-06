@@ -47,7 +47,7 @@ class Json {
 	class ObjectProxy;
 	class ArrayProxy;
 
-	Json() noexcept;
+	Json();
 	Json(Json&&) noexcept;
 	Json(Json const&);
 	Json& operator=(Json const) noexcept;
@@ -164,7 +164,6 @@ class Json {
 	void swap(Json& rhs) noexcept;
 
   private:
-	struct Construct {};
 	struct AsNumber {};
 	struct AsString {};
 	class IterBase;
@@ -173,7 +172,6 @@ class Json {
 	struct Impl;
 	struct Serializer;
 
-	Json(Construct);
 	Json(AsNumber, std::string number);
 	Json(AsString, std::string_view string);
 
