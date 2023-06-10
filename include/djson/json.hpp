@@ -2,6 +2,7 @@
 #include <djson/build_version.hpp>
 #include <djson/parse_error.hpp>
 #include <concepts>
+#include <cstdint>
 #include <memory>
 #include <string>
 
