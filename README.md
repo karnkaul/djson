@@ -131,7 +131,6 @@ Declarations of all customization points (`from_json` and `to_json`) must be vis
 ### Properties of class Json
 
 - Lightweight (size of one pointer)
-- Zero overhead default construction (does nothing)
 - Supports move and copy semantics
 - Moved-from objects can be reused
 - Contains tree of itself

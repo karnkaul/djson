@@ -2,6 +2,7 @@
 #include <djson/build_version.hpp>
 #include <djson/parse_error.hpp>
 #include <concepts>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -47,7 +48,7 @@ class Json {
 	class ObjectProxy;
 	class ArrayProxy;
 
-	Json() noexcept;
+	Json();
 	Json(Json&&) noexcept;
 	Json(Json const&);
 	Json& operator=(Json const) noexcept;
@@ -164,7 +165,6 @@ class Json {
 	void swap(Json& rhs) noexcept;
 
   private:
-	struct Construct {};
 	struct AsNumber {};
 	struct AsString {};
 	class IterBase;
@@ -173,7 +173,6 @@ class Json {
 	struct Impl;
 	struct Serializer;
 
-	Json(Construct);
 	Json(AsNumber, std::string number);
 	Json(AsString, std::string_view string);
 
@@ -347,7 +346,7 @@ class Json::ObjectProxy::Iter {
 template <typename T>
 T Json::get_as(T const& fallback) const {
 	if constexpr (std::same_as<T, bool> || std::same_as<T, Boolean>) {
-		return as_bool();
+		return as_bool().value;
 	} else if constexpr (std::integral<T>) {
 		if constexpr (std::is_signed_v<T>) {
 			return static_cast<T>(as_i64(static_cast<std::int64_t>(fallback)));
