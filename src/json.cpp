@@ -177,9 +177,9 @@ struct Json::Impl {
 		return std::visit(visitor, rhs);
 	}
 
-	static std::unique_ptr<Impl> clone(std::unique_ptr<Impl> const& rhs) {
+	static std::unique_ptr<Impl, Deleter> clone(std::unique_ptr<Impl, Deleter> const& rhs) {
 		if (!rhs) { return {}; }
-		auto ret = std::make_unique<Impl>();
+		auto ret = std::unique_ptr<Impl, Deleter>{new Impl{}};
 		ret->payload = clone(rhs->payload);
 		return ret;
 	}
@@ -351,10 +351,11 @@ struct Json::Impl::Parser {
 	bool at_end() const { return current.type == Type::eEof; }
 };
 
-Json::Json() : m_impl{std::make_unique<Impl>()} {}
+void Json::Deleter::operator()(Impl* ptr) const noexcept { std::default_delete<Impl>{}(ptr); }
+
+Json::Json() : m_impl{new Impl{}} {}
 Json::Json(Json&& rhs) noexcept : Json() { swap(rhs); }
 Json& Json::operator=(Json rhs) noexcept { return (swap(rhs), *this); }
-Json::~Json() noexcept = default;
 Json::Json(Json const& rhs) : m_impl{Impl::clone(rhs.m_impl)} {}
 
 void Json::swap(Json& rhs) noexcept { std::swap(m_impl, rhs.m_impl); }
@@ -414,7 +415,7 @@ std::string_view Json::as_string(std::string_view const fallback) const {
 }
 
 Json& Json::push_back(Json value) {
-	if (!m_impl) { m_impl = std::make_unique<Impl>(); }
+	if (!m_impl) { m_impl.reset(new Impl{}); }
 	auto* array = std::get_if<Impl::Array>(&m_impl->payload);
 	if (!array) {
 		m_impl->payload = Impl::Array{};
@@ -429,7 +430,7 @@ Json& Json::push_back(Json value) {
 }
 
 Json& Json::operator[](std::size_t const index) {
-	if (!m_impl) { m_impl = std::make_unique<Impl>(); }
+	if (!m_impl) { m_impl.reset(new Impl{}); }
 	auto* array = std::get_if<Impl::Array>(&m_impl->payload);
 	if (!array) {
 		m_impl->payload = Impl::Array{};
@@ -460,7 +461,7 @@ Json& Json::assign(std::string_view const key, Json value) {
 }
 
 Json& Json::operator[](std::string_view const key) {
-	if (!m_impl) { m_impl = std::make_unique<Impl>(); }
+	if (!m_impl) { m_impl.reset(new Impl{}); }
 	auto* object = std::get_if<Impl::Object>(&m_impl->payload);
 	if (!object) {
 		m_impl->payload = Impl::Object{};

@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(build_version 2.1.1)
+set(build_version 2.1.2)
 
 project(djson VERSION ${build_version})
 
