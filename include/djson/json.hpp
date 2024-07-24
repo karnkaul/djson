@@ -52,7 +52,6 @@ class Json {
 	Json(Json&&) noexcept;
 	Json(Json const&);
 	Json& operator=(Json const) noexcept;
-	~Json() noexcept;
 
 	///
 	/// \brief Probibit native bool entirely
@@ -173,6 +172,10 @@ class Json {
 	struct Impl;
 	struct Serializer;
 
+	struct Deleter {
+		void operator()(Impl* ptr) const noexcept;
+	};
+
 	Json(AsNumber, std::string number);
 	Json(AsString, std::string_view string);
 
@@ -182,7 +185,7 @@ class Json {
 	template <typename T>
 	T get_as(T const& fallback) const;
 
-	std::unique_ptr<Impl> m_impl{};
+	std::unique_ptr<Impl, Deleter> m_impl{};
 };
 
 class Json::IterBase {

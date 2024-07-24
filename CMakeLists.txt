@@ -3,11 +3,11 @@ cmake_minimum_required(VERSION 3.18)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_DEBUG_POSTFIX "-d")
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(build_version 2.1.1)
+set(build_version 2.1.2)
 
 project(djson VERSION ${build_version})
 
@@ -62,7 +62,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL GNU)
   )
 endif()
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 
 if(DJ_BUILD_TEST)
   enable_testing()
