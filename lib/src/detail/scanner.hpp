@@ -20,14 +20,14 @@ struct ScanError {
 
 class Scanner {
 	[[nodiscard]] static constexpr auto is_space(char const c) -> bool {
-		static constexpr auto chars_v = std::array{' ', '\t', '\n', '\r'};
+		constexpr auto chars_v = std::array{' ', '\t', '\n', '\r'};
 		return std::ranges::find(chars_v, c) != chars_v.end();
 	}
 
 	[[nodiscard]] static constexpr auto is_digit(char const c) -> bool { return c >= '0' && c <= '9'; }
 
 	[[nodiscard]] static constexpr auto is_part_number(char const c) -> bool {
-		static constexpr auto chars_v = std::array{'.', 'e', 'E', '-', '+'};
+		constexpr auto chars_v = std::array{'.', 'e', 'E', '-', '+'};
 		return is_digit(c) || std::ranges::find(chars_v, c) != chars_v.end();
 	}
 
@@ -48,11 +48,10 @@ class Scanner {
 
 	template <typename T>
 	[[nodiscard]] constexpr auto to_token(T const type, std::uint64_t const length) -> Token {
-		auto src_loc = m_src_loc;
 		auto const ret = Token{
 			.type = type,
 			.lexeme = m_remain.substr(0, length),
-			.src_loc = src_loc,
+			.src_loc = m_src_loc,
 		};
 		if (length > 0) {
 			for (std::uint64_t i = 0; i < length; ++i) { advance(); }

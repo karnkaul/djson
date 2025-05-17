@@ -39,7 +39,7 @@ struct Token {
 		return false;
 	}
 
-	Type type{};
+	Type type{token::Eof{}};
 	std::string_view lexeme{};
 	SrcLoc src_loc{};
 };
