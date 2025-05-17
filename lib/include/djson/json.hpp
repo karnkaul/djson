@@ -9,23 +9,31 @@
 #include <utility>
 
 namespace dj {
+/// \brief Numeric type.
 template <typename Type>
 concept NumericT = std::integral<Type> || std::floating_point<Type>;
 
+/// \brief Stringy type.
 template <typename Type>
 concept StringyT = std::convertible_to<Type, std::string_view>;
 
+/// \brief Type to obtain JSON value as.
 template <typename Type>
 concept GettableT = std::same_as<Type, bool> || NumericT<Type> || StringyT<Type>;
 
+/// \brief Type to set JSON value to.
 template <typename Type>
 concept SettableT = std::same_as<Type, std::nullptr_t> || GettableT<Type>;
 
 class Json;
+
+/// \brief Parse result type.
 using Result = std::expected<Json, Error>;
 
+/// \brief JSON value type.
 enum class JsonType : std::int8_t { Null, Boolean, Number, String, Array, Object, COUNT_ };
 
+/// \brief Bit flags for serialization options.
 struct SerializeFlag {
 	enum : std::uint8_t {
 		None = 0,
@@ -35,8 +43,10 @@ struct SerializeFlag {
 	};
 };
 using SerializeFlags = decltype(std::to_underlying(SerializeFlag::None));
+/// \brief Default serialize flags.
 inline constexpr auto serialize_flags_v = SerializeFlag::SortKeys | SerializeFlag::TrailingNewline;
 
+/// \brief Serialization options.
 struct SerializeOptions {
 	std::string_view indent{"  "};
 	std::string_view newline{"\n"};
@@ -48,6 +58,7 @@ struct Value;
 class Parser;
 } // namespace detail
 
+/// \brief Library interface, represents a valid JSON value.
 class Json {
   public:
 	using Type = JsonType;
@@ -68,12 +79,21 @@ class Json {
 		set(value);
 	}
 
+	/// \brief Parse JSON text.
+	/// \param text Input JSON text.
+	/// \returns Json if successful, else Error.
 	[[nodiscard]] static auto parse(std::string_view text) -> Result;
+	/// \brief Parse JSON from a file.
+	/// \param path Path to JSON file.
+	/// \returns Json if successful, else Error.
 	[[nodiscard]] static auto from_file(std::string_view path) -> Result;
 
+	/// \brief Obtain a Json representing an empty Array value.
 	[[nodiscard]] static auto empty_array() -> Json const&;
+	/// \brief Obtain a Json representing an empty Object value.
 	[[nodiscard]] static auto empty_object() -> Json const&;
 
+	/// \brief Obtain the value type of this Json.
 	[[nodiscard]] auto get_type() const -> Type;
 
 	[[nodiscard]] auto is_null() const -> bool { return get_type() == Type::Null; }
@@ -150,19 +170,49 @@ class Json {
 		}
 	}
 
+	/// \brief Set value to empty Array.
 	void set_array();
+	/// \brief Set value to empty Object.
 	void set_object();
 
+	/// \brief Insert value at the end of the Array.
+	/// Converts to empty Array value first if not already one.
+	/// \param value Value to insert.
+	/// \returns Reference to inserted value.
 	auto push_back(Json value = {}) -> Json&;
+	/// \brief Insert value associated with key into the Object.
+	/// Converts to empty Object value first if not already one.
+	/// \param key Key to associate value with.
+	/// \param value Value to insert.
+	/// \returns Reference to inserted value.
 	auto insert_or_assign(std::string key, Json value) -> Json&;
 
+	/// \brief Obtain the value associated with the passed key.
+	/// \param key Key to lookup value for.
+	/// \returns Value if type is Object and key exists, else null.
 	[[nodiscard]] auto operator[](std::string_view key) const -> Json const&;
+	/// \brief Obtain the value associated with the passed key.
+	/// \param key Key to lookup value for.
+	/// \returns Reference to value if key exists, else newly inserted null value.
 	[[nodiscard]] auto operator[](std::string_view key) -> Json&;
 
+	/// \brief Obtain the value at the passed index.
+	/// \param index Index to access value for.
+	/// \returns Value at index if type is Array and index is less than size, else null.
 	[[nodiscard]] auto operator[](std::size_t index) const -> Json const&;
+	/// \brief Obtain the value at the passed index.
+	/// \param index Index to access value for.
+	/// \returns Reference to value at index. Resizes if necessary.
 	[[nodiscard]] auto operator[](std::size_t index) -> Json&;
 
+	/// \brief Serialize value as a string.
+	/// \param options Serialization options.
+	/// \returns Serialized string.
 	[[nodiscard]] auto serialize(SerializeOptions const& options = {}) const -> std::string;
+	/// \brief Write serialized string to a file.
+	/// \param path Path to write to.
+	/// \param options Serialization options.
+	/// \returns true if file successfully written.
 	[[nodiscard]] auto to_file(std::string_view path, SerializeOptions const& options = {}) const -> bool;
 
 	friend void swap(Json& a, Json& b) noexcept { std::swap(a.m_value, b.m_value); }
@@ -185,19 +235,23 @@ class Json {
 
 [[nodiscard]] inline auto to_string(Json const& json, SerializeOptions const& options = {}) { return json.serialize(options); }
 
+/// \brief Convert input text to escaped string.
 [[nodiscard]] auto make_escaped(std::string_view text) -> std::string;
 
+/// \brief Assign JSON as value.
 template <GettableT Type>
 void from_json(Json const& json, Type& value, Type const fallback = {}) {
 	value = json.as<Type>(fallback);
 }
 
+/// \brief Assign value to JSON.
 template <SettableT Type>
 void to_json(Json& json, Type const& value) {
 	json.set(value);
 }
 } // namespace dj
 
+/// \brief Specialization for std::format (and related).
 template <>
 struct std::formatter<dj::Json> {
 	template <typename FormatParseContext>
