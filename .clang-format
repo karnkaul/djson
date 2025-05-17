@@ -1,6 +1,6 @@
 ---
 Language: Cpp
-BasedOnStyle:  LLVM
+BasedOnStyle: LLVM
 AlwaysBreakTemplateDeclarations: Yes
 BreakBeforeBraces: Attach
 ColumnLimit: 160
@@ -8,7 +8,6 @@ SpaceAfterTemplateKeyword: true
 Standard: c++20
 TabWidth: 4
 IndentWidth: 4
-IndentRequires: true
 UseTab: Always
 AllowShortEnumsOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
@@ -17,15 +16,16 @@ AllowShortLambdasOnASingleLine: All
 AllowShortBlocksOnASingleLine: Always
 AllowShortIfStatementsOnASingleLine: Always
 AllowShortLoopsOnASingleLine: true
+IndentRequires: true
 IncludeCategories:
-  # Headers in <> with .hpp extension.
-  - Regex:           '<([A-Za-z0-9\/-_])+\.hpp>'
-    Priority:        1
-  # Headers in <> with .h extension.
-  - Regex:           '<([A-Za-z0-9\/-_])+\.h>'
-    Priority:        10
-  # Headers in <> without extension.
-  - Regex:           '<([A-Za-z0-9\/-_])+>'
-    Priority:        20
+    # Headers in <> with .h extension.
+    - Regex: '<([A-Za-z0-9\/-_])+\.h>'
+      Priority: 10
+    # Headers in <> with .hpp extension.
+    - Regex: '<([A-Za-z0-9\/-_])+\.hpp>'
+      Priority: 20
+    # Headers in <> without extension.
+    - Regex: '<([A-Za-z0-9\/-_])+>'
+      Priority: 30
 PointerAlignment: Left
-...
+QualifierAlignment: Right

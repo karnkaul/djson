@@ -1,35 +1,32 @@
-cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+project(djson-test)
 
-project(dj-test)
+add_library(${PROJECT_NAME})
+add_library(djson::test ALIAS ${PROJECT_NAME})
 
-if(NOT TARGET djson)
-  find_package(djson CONFIG REQUIRED)
-endif()
+target_include_directories(${PROJECT_NAME} PUBLIC
+  ../lib/src
+  harness
+)
 
-add_library(dj-test)
-add_library(dj::test ALIAS dj-test)
-target_link_libraries(dj-test PUBLIC djson::djson)
-target_include_directories(dj-test PUBLIC .)
-target_sources(dj-test PRIVATE test/test.cpp test/test.hpp)
+target_sources(${PROJECT_NAME} PRIVATE
+  harness/unit_test.hpp
+  harness/unit_test.cpp
+)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL GNU)
-  target_compile_options(dj-test PUBLIC
-    -Wall -Wextra -Wpedantic -Wconversion -Werror=return-type -Wunused
-  )
-endif()
+add_executable(${PROJECT_NAME}-main)
 
-add_executable(dj-test-core)
-target_sources(dj-test-core PRIVATE core.cpp)
-target_link_libraries(dj-test-core PRIVATE dj::test)
+target_link_libraries(${PROJECT_NAME}-main PRIVATE
+  djson::djson
+  djson::test
+)
 
-add_executable(dj-test-marshall)
-target_sources(dj-test-marshall PRIVATE marshall.cpp)
-target_link_libraries(dj-test-marshall PRIVATE dj::test)
+file(GLOB_RECURSE sources LIST_DIRECTORIES false "*.cpp")
+target_sources(${PROJECT_NAME}-main PRIVATE
+  harness/unit_test_main.cpp
+  ${sources}
+)
 
-add_executable(dj-test-read)
-target_sources(dj-test-read PRIVATE read.cpp)
-target_link_libraries(dj-test-read PRIVATE dj::test)
-
-add_test(djson-core dj-test-core)
-add_test(djson-marshall dj-test-marshall)
-add_test(djson-read dj-test-read WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(NAME ${PROJECT_NAME}
+  COMMAND ${PROJECT_NAME}-main
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+)
