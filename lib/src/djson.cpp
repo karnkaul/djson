@@ -534,6 +534,18 @@ void Json::set_number(double const value) {
 	m_value->payload = detail::literal::Number{.payload = value};
 }
 
+void Json::set_value(Json value) { m_value = std::move(value.m_value); }
+
+void Json::set_array() {
+	ensure_impl();
+	m_value->morph<detail::Array>().members.clear();
+}
+
+void Json::set_object() {
+	ensure_impl();
+	m_value->morph<detail::Object>().members.clear();
+}
+
 auto Json::push_back(Json value) -> Json& {
 	ensure_impl();
 	return m_value->morph<detail::Array>().members.emplace_back(std::move(value));
@@ -609,4 +621,9 @@ auto dj::make_escaped(std::string_view const text) -> std::string {
 		ret.push_back(c);
 	}
 	return ret;
+}
+
+auto std::formatter<dj::Json>::format(dj::Json const& json, std::format_context& fc) -> std::format_context::iterator {
+	auto const str = json.serialize(dj::SerializeOptions{.flags = dj::SerializeFlag::NoSpaces});
+	return std::format_to(fc.out(), "{}", str);
 }

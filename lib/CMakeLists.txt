@@ -1,4 +1,4 @@
-project(djson-lib VERSION ${build_version})
+project(djson-lib VERSION ${djson_version})
 
 set(version_file "${CMAKE_CURRENT_BINARY_DIR}/include/djson/build_version.hpp")
 configure_file(src/build_version.hpp.in "${version_file}" @ONLY)

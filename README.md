@@ -1,4 +1,4 @@
-# djson v2.0
+# djson v3.0
 
 ## Dumb and lightweight JSON parsing library.
 
@@ -6,11 +6,9 @@
 
 ## Features
 
-- First-in/first-out object maps
-- Fast conversion of strings to numbers using `std::from_chars`
 - Copiable `Json` objects
-- Proxy containers for array/object iteration
-- `std::string_view` interface to minimize redundant `std::string` copies
+- Default construction (representing `null`) is "free"
+- `as_string_view()`
 - Heterogenous arrays
 - Escaped text (`\\`, `\"`, `\b`, `\t`, `\n`)
 - Implicit construction for nulls, booleans, numbers, strings
@@ -18,80 +16,136 @@
 - Customization points for `from_json` and `to_json`
 - Build tree from scratch
 
-## Limitations
+### Limitations
 
-- Hex/binary literals not supported
-- Only tested with single-byte characters
+- Escaped unicode (`\u1F604`) not currently supported
 
 ## Usage
 
-`class Json` is the primary type around which the entire library's interface is designed. Use the static member function `Json::parse()` to attempt to parse text into a `Json` object:
+### Input
+
+`class Json` is the primary type around which the entire library's interface is designed. Use the static member function `Json::parse()` to attempt to parse text into a `Json` value. It returns a `Result` (ie, `std::expected<Json, Error>`):
 
 ```cpp
-constexpr auto text = R"({ "foo": "party", "universe": 42 })";
-auto const json = dj::Json::parse(text);
+constexpr auto text = R"({
+  "elements": [-2.5e3, "bar"],
+  "foo": "party",
+  "universe": 42
+})";
+auto result = dj::Json::parse(text);
+auto& json = result.value();
 assert(!json.is_null());
 ```
 
-Check if a key exists as an object via `contains()`. Access objects at keys via `operator[]`; non-existent keys return null:
+Access values of Objects via `operator[](key)`. A `const Json` will return `null` for non-existent keys, whereas a mutable `Json` will return a reference to a newly created value:
 
 ```cpp
-assert(json.contains("foo"));
+auto const& elements = json["elements"];
 auto const& foo = json["foo"];
 auto const& universe = json["universe"];
+assert(std::as_const(json)["nonexistent"].is_null());
 ```
 
-Convert to a C++ type via `as_*()`:
+Access values of Arrays via `operator[](index)`. A `const Json` will return `null` for out-of-bound indices, whereas a mutable `Json` will resize itself and return a reference to a newly created value:
 
 ```cpp
-auto const foo_value = foo.as_string();
-auto const universe_value = universe.as<int>();
-assert(foo_value == "party" && universe_value == 42);
+auto const& elem0 = elements[0];
+auto const& elem1 = elements[1];
+assert(elements[2].is_null());
 ```
 
-Iterate over arrays via `array_view()`:
+Check the type of a `Json` value via `get_type()` / `is_*()`:
 
 ```cpp
-constexpr auto text = R"([ 1, 2, 3, 4, 5 ])";
-auto const json = dj::Json::parse(text);
-assert(json[1].as<int>() == 2);
+assert(elements.get_type() == dj::JsonType::Array);
+assert(elem0.get_type() == dj::JsonType::Number);
+assert(elem1.is_string());
+assert(foo.is_string());
+assert(universe.is_number());
+```
 
-auto const get_sum = [](dj::Json const& j) {
-  int total{};
-  for (auto const& i : j.array_view()) { total += i.as<int>(); }
-  return total;
+Convert to a C++ type via `as_*()` or `as<T>()`:
+
+```cpp
+assert(elem0.as_double() == -2500.0); // == on floats is just for exposition.
+assert(elem1.as_string_view() == "bar");
+assert(foo.as_string_view() == "party");
+assert(universe.as<int>() == 42);
+```
+
+Iterate over Arrays via `as_array()`. Array elements are ordered:
+
+```cpp
+for (auto const [index, value] :
+    std::views::enumerate(elements.as_array())) {
+  std::println("[{}]: {}", index, value);
+}
+
+// output:
+// [0]: -2500
+// [1]: "bar"
+```
+
+Iterate over Objects via `as_object()`. Object elements are not ordered:
+
+```cpp
+for (auto const& [key, value] : json.as_object()) {
+  std::println(R"("{}": {})", key, value);
+}
+
+// output (unordered):
+// "universe": 42
+// "foo": "party"
+// "elements": [-2500,"bar"]
+```
+
+### Output
+
+Use `set*()` to overwrite the value of a `Json` with a literal (`null` / boolean / number / string), an empty Array / Object, or another `Json` value. It can also be constructed this way:
+
+```cpp
+auto json = dj::Json{};
+assert(json.is_null());
+json.set_number(42);
+assert(json.as<int>() == 42);
+json.set_object();
+assert(json.is_object());
+assert(json.as_object().empty());
+json.set_value(dj::Json::empty_array());
+assert(json.is_array());
+assert(json.as_array().empty());
+json.set_value(dj::Json{true});
+assert(json.as_bool());
+```
+
+### Serialization
+
+Serialize to strings via `Json::serialize()` or `to_string()` or `std::format()` (and related). The first two can be customized via `SerializeOptions`. `std::formatter<Json>` uses `SerializeFlag::NoSpaces` for compact output.
+
+```cpp
+auto json = dj::Json::parse(R"({"foo": 42, "bar": [-5, true]})").value();
+auto const options = dj::SerializeOptions{
+  .indent = "\t",
+  .newline = "\n",
+  .flags = dj::SerializeFlag::SortKeys | dj::SerializeFlag::TrailingNewline,
 };
-auto const sum = get_sum(json);
-assert(sum == 15);
+auto const serialized = json.serialize(options);
+std::print("{}", serialized);
+
+/* output:
+{
+	"bar": [
+		-5,
+		true
+	],
+	"foo": 42
+}
+*/
 ```
 
-Iterate over objects via `object_view()` (iterators dereference to proxy objects). Check for keys via `contains()`:
+Read from / write to files via `from_file()` / `to_file()`.
 
-```cpp
-constexpr auto text = R"({ "Mercury": 0, "Venus": 0, "Earth": 1, "Mars": 2 })";
-auto const json = dj::Json::parse(text);
-assert(json.contains("Earth"));
-
-auto moons = std::unordered_map<std::string, std::uint32_t>{};
-for (auto const [key, count] : json.object_view()) { moons[std::string{key}] = count.as<std::uint32_t>(); }
-assert(moons["Earth"] == 1);
-```
-
-Serialize to strings / output streams:
-
-```cpp
-std::string const serialized = to_string(json);
-std::cout << json;
-json.serialize_to(output_file, /*indent_spacing =*/ 0); // minify
-```
-
-Read from / write to files:
-
-```cpp
-auto const json = dj::Json::from_file("path/to/file.json");
-// ...
-if (json.to_file("path/to/file.json")) { /* success */ }
-```
+### Customization
 
 Parse your own types:
 
@@ -101,7 +155,7 @@ struct Item {
   std::string name{};
   int weight{};
 
-  bool operator==(Item const&) const = default;
+  auto operator==(Item const&) const -> bool = default;
 };
 
 void from_json(dj::Json const& json, Item& out) {
@@ -126,38 +180,16 @@ from_json(json, dst);
 assert(src == dst);
 ```
 
-Declarations of all customization points (`from_json` and `to_json`) must be visible in all translation units that include `json.hpp`, else the program will be ill formed (ODR violation).
-
-### Properties of class Json
-
-- Lightweight (size of one pointer)
-- Supports move and copy semantics
-- Moved-from objects can be reused
-- Contains tree of itself
-- Uses `std::from_chars<double>` and `std::make_unique_for_overwrite` if available
-  - Falls back to `std::strtod` and `std::make_unique` if not (eg GCC 10)
-- Proxy containers (returned by `.*_view()`) are non-copiable and non-moveable
-  - They are intended for local scope usage only, storing them is unwise
-  - Iterators propagate `Json` / container `const`-ness
-- Each instance holds a variant (internal) of supported JSON types, including arrays and objects/maps
-- There is no internal thread synchronization: 
-  - Reading a `Json` from multiple threads is ok - operate on a `const` object to enforce this invariant
-  - If any thread writes / uses (non-const) `operator[]`, external synchronziation will be required across _all_ threads
-
 ## Building
 
 ### Requirements
 
-- CMake 3.18
-- C++20 compiler (and stdlib)
+- CMake 3.24
+- C++23 compiler (and stdlib)
 
 ### Integration
 
-`djson` uses CMake, and supports the following workflows:
-
-1. Clone/Fetch repo to subdirectory in project, use `add_subdirectory`
-1. Build and install `djson` to some location, use `find_package(djson CONFIG)` and add install path to `CMAKE_PREFIX_PATH` during configuration
-1. Copy sources, setup include paths, compiler options, build and install manually (not recommended)
+`djson` uses CMake, and expects to be built and linked as a static library. The suggested workflow is to use `FetchContent` or `git clone` / vendor the repository + use `add_subdirectory()`.
 
 Once integrated, use in any source file via:
 

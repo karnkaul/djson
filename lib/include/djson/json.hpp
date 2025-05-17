@@ -2,6 +2,7 @@
 #include <djson/error.hpp>
 #include <djson/string_table.hpp>
 #include <expected>
+#include <format>
 #include <memory>
 #include <span>
 #include <string>
@@ -123,6 +124,7 @@ class Json {
 	void set_number(std::int64_t value);
 	void set_number(std::uint64_t value);
 	void set_number(double value);
+	void set_value(Json value);
 
 	template <NumericT Type>
 	void set_number(Type const value) {
@@ -147,6 +149,9 @@ class Json {
 			set_string(value);
 		}
 	}
+
+	void set_array();
+	void set_object();
 
 	auto push_back(Json value = {}) -> Json&;
 	auto insert_or_assign(std::string key, Json value) -> Json&;
@@ -178,6 +183,8 @@ class Json {
 	friend class detail::Parser;
 };
 
+[[nodiscard]] inline auto to_string(Json const& json, SerializeOptions const& options = {}) { return json.serialize(options); }
+
 [[nodiscard]] auto make_escaped(std::string_view text) -> std::string;
 
 template <GettableT Type>
@@ -190,3 +197,13 @@ void to_json(Json& json, Type const& value) {
 	json.set(value);
 }
 } // namespace dj
+
+template <>
+struct std::formatter<dj::Json> {
+	template <typename FormatParseContext>
+	constexpr auto parse(FormatParseContext& pc) const {
+		return pc.begin();
+	}
+
+	static auto format(dj::Json const& json, std::format_context& fc) -> std::format_context::iterator;
+};

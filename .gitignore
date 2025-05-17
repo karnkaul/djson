@@ -10,4 +10,5 @@ CMakeSettings.json
 compile_commands.json
 /CMakeUserPresets.json
 
-wiki
+wiki/
+docs/

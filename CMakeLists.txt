@@ -5,11 +5,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_DEBUG_POSTFIX "-d")
 
-set(build_version 3.0.0)
+include(version.cmake)
 
-project(djson VERSION ${build_version})
+project(djson VERSION ${djson_version})
 
 option(DJ_BUILD_TESTS "Build djson tests" ${PROJECT_IS_TOP_LEVEL})
+
+configure_file(Doxyfile.in Doxyfile @ONLY)
 
 add_subdirectory(lib)
 
