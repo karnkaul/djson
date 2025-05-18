@@ -58,6 +58,16 @@ struct SerializeOptions {
 	SerializeFlags flags{serialize_flags_v};
 };
 
+/// \brief Bit flags for parse options.
+struct ParseFlag {
+	enum : std::uint8_t {
+		None = 0,
+		/// \brief Disallow comments.
+		NoComments = 1 << 0,
+	};
+};
+using ParseFlags = decltype(std::to_underlying(ParseFlag::None));
+
 namespace detail {
 struct Value;
 class Parser;
@@ -86,8 +96,9 @@ class Json {
 
 	/// \brief Parse JSON text.
 	/// \param text Input JSON text.
+	/// \param flags Parse flags.
 	/// \returns Json if successful, else Error.
-	[[nodiscard]] static auto parse(std::string_view text) -> Result;
+	[[nodiscard]] static auto parse(std::string_view text, ParseFlags flags = {}) -> Result;
 	/// \brief Parse JSON from a file.
 	/// \param path Path to JSON file.
 	/// \returns Json if successful, else Error.

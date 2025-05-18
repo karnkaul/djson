@@ -10,15 +10,15 @@ using namespace dj;
 
 using ErrType = Error::Type;
 
-[[nodiscard]] auto expect_json(std::string_view const text) {
-	auto parser = detail::Parser{text};
+[[nodiscard]] auto expect_json(std::string_view const text, ParseFlags const flags = {}) {
+	auto parser = detail::Parser{text, flags};
 	auto result = parser.parse();
 	ASSERT(result);
 	return *result;
 }
 
-[[nodiscard]] auto expect_error(std::string_view const text) {
-	auto parser = detail::Parser{text};
+[[nodiscard]] auto expect_error(std::string_view const text, ParseFlags const flags = {}) {
+	auto parser = detail::Parser{text, flags};
 	auto result = parser.parse();
 	ASSERT(!result);
 	return result.error();
@@ -82,7 +82,9 @@ TEST(parser_string) {
 	EXPECT(json.is_string());
 	EXPECT(json.as_string_view().empty());
 
-	json = expect_json(R"("hello world")");
+	json = expect_json(R"("hello world"
+// comment
+)");
 	EXPECT(json.is_string());
 	EXPECT(json.as<std::string_view>() == "hello world");
 
@@ -149,6 +151,17 @@ TEST(parser_unexpected_token) {
 	EXPECT(error.type == ErrType::UnexpectedToken);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 4);
 	EXPECT(error.token == "true");
+	std::println("{}", to_string(error));
+}
+
+TEST(parser_unexpected_comment) {
+	auto error = expect_error(R"(	42 
+// unexpected comment
+true)",
+							  ParseFlag::NoComments);
+	EXPECT(error.type == ErrType::UnexpectedComment);
+	EXPECT(error.src_loc.line == 2 && error.src_loc.column == 1);
+	EXPECT(error.token == "// unexpected comment");
 	std::println("{}", to_string(error));
 }
 

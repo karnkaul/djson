@@ -8,7 +8,7 @@ class Parser {
   public:
 	[[nodiscard]] static auto make_json(Value::Payload payload) -> Json;
 
-	explicit Parser(std::string_view text);
+	explicit Parser(std::string_view text, ParseFlags flags);
 
 	[[nodiscard]] auto parse() -> Result;
 
@@ -31,6 +31,8 @@ class Parser {
 
 	[[nodiscard]] auto unescape_string(token::String in) const -> std::string;
 	[[nodiscard]] auto make_key() -> std::string;
+
+	bool m_no_comments{};
 
 	Scanner m_scanner;
 	Token m_current{};

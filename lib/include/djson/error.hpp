@@ -13,6 +13,7 @@ struct Error {
 		InvalidNumber,
 		InvalidEscape,
 		UnexpectedToken,
+		UnexpectedComment,
 		UnexpectedEof,
 		MissingKey,
 		MissingColon,

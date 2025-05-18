@@ -12,19 +12,10 @@ namespace {
 using namespace std::string_view_literals;
 
 constexpr auto error_type_str_v = std::array{
-	"Unknown error"sv,
-	"Unrecognized Token"sv,
-	"Missing closing quote"sv,
-	"Invalid number"sv,
-	"Invalid escape"sv,
-	"Unexpected token"sv,
-	"Unexpected end of file"sv,
-	"Missing key"sv,
-	"Missing colon (':')"sv,
-	"Missing closing brace ('}')"sv,
-	"Missing closing square bracket (']')"sv,
-	"I/O error"sv,
-	"Unsupported feature"sv,
+	"Unknown error"sv,	"Unrecognized Token"sv,	 "Missing closing quote"sv,		  "Invalid number"sv,
+	"Invalid escape"sv, "Unexpected token"sv,	 "Unexpected comment"sv,		  "Unexpected end of file"sv,
+	"Missing key"sv,	"Missing colon (':')"sv, "Missing closing brace ('}')"sv, "Missing closing square bracket (']')"sv,
+	"I/O error"sv,		"Unsupported feature"sv,
 };
 
 static_assert(error_type_str_v.size() == std::size_t(Error::Type::COUNT_));
@@ -122,7 +113,8 @@ auto Parser::make_json(Value::Payload payload) -> Json {
 	return ret;
 }
 
-Parser::Parser(std::string_view const text) : m_scanner(text) {}
+Parser::Parser(std::string_view const text, ParseFlags const flags)
+	: m_no_comments((flags & ParseFlag::NoComments) == ParseFlag::NoComments), m_scanner(text) {}
 
 auto Parser::parse() -> Result {
 	try {
@@ -138,9 +130,17 @@ auto Parser::parse() -> Result {
 }
 
 void Parser::advance() {
-	auto scan_result = m_scanner.next();
-	if (!scan_result) { throw to_parse_error(scan_result.error()); }
-	m_current = *scan_result;
+	auto const is_comment = [this] {
+		if (!m_current.is<token::Comment>()) { return false; }
+		if (m_no_comments) { throw make_error(Error::Type::UnexpectedComment); }
+		return true;
+	};
+
+	do {
+		auto scan_result = m_scanner.next();
+		if (!scan_result) { throw to_parse_error(scan_result.error()); }
+		m_current = *scan_result;
+	} while (is_comment());
 }
 
 void Parser::consume(token::Operator const expected, Error::Type const on_error) {
@@ -449,7 +449,7 @@ auto Json::operator=(Json const& other) -> Json& {
 	return *this;
 }
 
-auto Json::parse(std::string_view const text) -> Result { return detail::Parser{text}.parse(); }
+auto Json::parse(std::string_view const text, ParseFlags const flags) -> Result { return detail::Parser{text, flags}.parse(); }
 
 auto Json::from_file(std::string_view const path) -> Result {
 	auto text = std::string{};
