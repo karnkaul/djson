@@ -180,6 +180,10 @@ from_json(json, dst);
 assert(src == dst);
 ```
 
+## API Reference
+
+Hosted [here](https://karnkaul.github.io/djson/).
+
 ## Building
 
 ### Requirements
