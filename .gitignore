@@ -10,6 +10,6 @@ CMakeSettings.json
 compile_commands.json
 /CMakeUserPresets.json
 
-wiki/
-docs/
+/wiki
+/docs
 Doxyfile
