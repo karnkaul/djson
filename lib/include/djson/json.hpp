@@ -37,8 +37,11 @@ enum class JsonType : std::int8_t { Null, Boolean, Number, String, Array, Object
 struct SerializeFlag {
 	enum : std::uint8_t {
 		None = 0,
+		/// \brief Sort keys lexicographically.
 		SortKeys = 1 << 0,
+		/// \brief Append newline at the end. Ignored if NoSpaces is set.
 		TrailingNewline = 1 << 1,
+		/// \brief No whitespace. Ignores TrailingNewLine and other whitespace options.
 		NoSpaces = 1 << 2,
 	};
 };
@@ -48,7 +51,9 @@ inline constexpr auto serialize_flags_v = SerializeFlag::SortKeys | SerializeFla
 
 /// \brief Serialization options.
 struct SerializeOptions {
+	/// \brief Indentation string. Ignored if SerializeFlag::NoSpaces is set.
 	std::string_view indent{"  "};
+	/// \brief Newline string. Ignored if SerializeFlag::NoSpaces is set.
 	std::string_view newline{"\n"};
 	SerializeFlags flags{serialize_flags_v};
 };
