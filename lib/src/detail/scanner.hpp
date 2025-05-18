@@ -108,6 +108,13 @@ class Scanner {
 		return to_token(token::String{.escaped = m_remain.substr(1, length)}, length + 2);
 	}
 
+	[[nodiscard]] constexpr auto scan_comment() -> Token {
+		assert(m_remain.starts_with("//"));
+		auto length = 0uz;
+		for (; length < m_remain.size() && m_remain.at(length) != '\n'; ++length) {}
+		return to_token(token::Comment{.text = m_remain.substr(0, length)}, length);
+	}
+
 	std::string_view m_remain{};
 	SrcLoc m_src_loc{};
 
@@ -125,6 +132,7 @@ class Scanner {
 		if (try_operator(ret)) { return ret; }
 		if (try_number(ret)) { return ret; }
 		if (m_remain.starts_with("\"")) { return scan_string(); }
+		if (m_remain.starts_with("//")) { return scan_comment(); }
 
 		return std::unexpected(to_scan_error(ScanError::Type::UnrecognizedToken, 1));
 	}
