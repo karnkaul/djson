@@ -80,14 +80,47 @@ constexpr auto test_numbers() {
 	return fixture.expect_eof();
 }
 
-constexpr auto test_comment() {
+constexpr auto test_line_comment() {
 	auto fixture = Fixture{R"("hello"
 // this is a comment
-42)"};
+42
+)"};
 	if (!fixture.expect_string("hello")) { return false; }
 	if (!fixture.expect_token()) { return false; }
 	if (!fixture.token.is<token::Comment>() || fixture.token.lexeme != "// this is a comment") { return false; }
 	if (!fixture.expect_number("42")) { return false; }
+	return fixture.expect_eof();
+}
+
+constexpr auto test_eof_line_comment() {
+	auto fixture = Fixture{R"("hello"
+// this is a comment)"};
+	if (!fixture.expect_string("hello")) { return false; }
+	if (!fixture.expect_token()) { return false; }
+	if (!fixture.token.is<token::Comment>() || fixture.token.lexeme != "// this is a comment") { return false; }
+	return fixture.expect_eof();
+}
+
+constexpr auto test_multiline_comment() {
+	auto fixture = Fixture{R"("hello"
+/* this is
+a multi-line
+comment */ 42)"};
+	if (!fixture.expect_string("hello")) { return false; }
+	if (!fixture.expect_token()) { return false; }
+	if (!fixture.token.is<token::Comment>() || fixture.token.lexeme != "/* this is\na multi-line\ncomment */") { return false; }
+	if (!fixture.expect_number("42")) { return false; }
+	return fixture.expect_eof();
+}
+
+constexpr auto test_eof_multiline_comment() {
+	auto fixture = Fixture{R"("hello"
+/* this is
+a multi-line
+comment */)"};
+	if (!fixture.expect_string("hello")) { return false; }
+	if (!fixture.expect_token()) { return false; }
+	if (!fixture.token.is<token::Comment>() || fixture.token.lexeme != "/* this is\na multi-line\ncomment */") { return false; }
 	return fixture.expect_eof();
 }
 
@@ -104,10 +137,22 @@ constexpr auto test_missing_quote() {
 	return fixture.expect_error(ErrType::MissingClosingQuote, "\"", 2, 1);
 }
 
+constexpr auto test_missing_end_comment() {
+	auto fixture = Fixture{R"("hello"
+/* missing
+end-comment 42)"};
+	if (!fixture.expect_string("hello")) { return false; }
+	return fixture.expect_error(ErrType::MissingEndComment, "/*", 2, 1);
+}
+
 static_assert(test_operators());
 static_assert(test_strings());
 static_assert(test_numbers());
-static_assert(test_comment());
+static_assert(test_line_comment());
+static_assert(test_eof_line_comment());
+static_assert(test_multiline_comment());
+static_assert(test_eof_multiline_comment());
 static_assert(test_unrecognized_token());
 static_assert(test_missing_quote());
+static_assert(test_missing_end_comment());
 } // namespace

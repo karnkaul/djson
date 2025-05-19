@@ -19,6 +19,7 @@ struct Error {
 		MissingColon,
 		MissingBrace,
 		MissingBracket,
+		MissingEndComment,
 		IoError,
 		UnsupportedFeature,
 		COUNT_,

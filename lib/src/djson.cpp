@@ -12,10 +12,21 @@ namespace {
 using namespace std::string_view_literals;
 
 constexpr auto error_type_str_v = std::array{
-	"Unknown error"sv,	"Unrecognized Token"sv,	 "Missing closing quote"sv,		  "Invalid number"sv,
-	"Invalid escape"sv, "Unexpected token"sv,	 "Unexpected comment"sv,		  "Unexpected end of file"sv,
-	"Missing key"sv,	"Missing colon (':')"sv, "Missing closing brace ('}')"sv, "Missing closing square bracket (']')"sv,
-	"I/O error"sv,		"Unsupported feature"sv,
+	"Unknown error"sv,
+	"Unrecognized Token"sv,
+	"Missing closing quote"sv,
+	"Invalid number"sv,
+	"Invalid escape"sv,
+	"Unexpected token"sv,
+	"Unexpected comment"sv,
+	"Unexpected end of file"sv,
+	"Missing key"sv,
+	"Missing colon (':')"sv,
+	"Missing closing brace ('}')"sv,
+	"Missing closing square bracket (']')"sv,
+	"Missing end comment ('*/')"sv,
+	"I/O error"sv,
+	"Unsupported feature"sv,
 };
 
 static_assert(error_type_str_v.size() == std::size_t(Error::Type::COUNT_));
@@ -43,6 +54,7 @@ namespace {
 	switch (type) {
 	case ScanError::Type::MissingClosingQuote: return Error::Type::MissingClosingQuote;
 	case ScanError::Type::UnrecognizedToken: return Error::Type::UnrecognizedToken;
+	case ScanError::Type::MissingEndComment: return Error::Type::MissingEndComment;
 	default: return Error::Type::Unknown;
 	}
 }

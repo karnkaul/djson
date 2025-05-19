@@ -11,6 +11,7 @@ struct ScanError {
 	enum class Type : std::int8_t {
 		UnrecognizedToken,
 		MissingClosingQuote,
+		MissingEndComment,
 	};
 
 	Type type{};
@@ -108,10 +109,19 @@ class Scanner {
 		return to_token(token::String{.escaped = m_remain.substr(1, length)}, length + 2);
 	}
 
-	[[nodiscard]] constexpr auto scan_comment() -> Token {
+	[[nodiscard]] constexpr auto scan_line_comment() -> Token {
 		assert(m_remain.starts_with("//"));
-		auto length = 0uz;
-		for (; length < m_remain.size() && m_remain.at(length) != '\n'; ++length) {}
+		auto length = m_remain.find('\n');
+		if (length == std::string_view::npos) { length = m_remain.size(); }
+		return to_token(token::Comment{.text = m_remain.substr(0, length)}, length);
+	}
+
+	[[nodiscard]] constexpr auto scan_multiline_comment() -> std::expected<Token, ScanError> {
+		assert(m_remain.starts_with("/*"));
+		auto length = m_remain.find("*/");
+		if (length == std::string_view::npos) { return std::unexpected(to_scan_error(ScanError::Type::MissingEndComment, 2)); }
+		assert(length + 2 <= m_remain.size());
+		length += 2;
 		return to_token(token::Comment{.text = m_remain.substr(0, length)}, length);
 	}
 
@@ -132,7 +142,8 @@ class Scanner {
 		if (try_operator(ret)) { return ret; }
 		if (try_number(ret)) { return ret; }
 		if (m_remain.starts_with("\"")) { return scan_string(); }
-		if (m_remain.starts_with("//")) { return scan_comment(); }
+		if (m_remain.starts_with("//")) { return scan_line_comment(); }
+		if (m_remain.starts_with("/*")) { return scan_multiline_comment(); }
 
 		return std::unexpected(to_scan_error(ScanError::Type::UnrecognizedToken, 1));
 	}
