@@ -6,6 +6,7 @@
 
 ## Features
 
+- JSONC parse mode
 - Copiable `Json` objects
 - Default construction (representing `null`) is "free"
 - `as_string_view()`

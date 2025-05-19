@@ -101,8 +101,9 @@ class Json {
 	[[nodiscard]] static auto parse(std::string_view text, ParseMode mode = ParseMode::Auto) -> Result;
 	/// \brief Parse JSON from a file.
 	/// \param path Path to JSON file.
+	/// \param mode Parse mode.
 	/// \returns Json if successful, else Error.
-	[[nodiscard]] static auto from_file(std::string_view path) -> Result;
+	[[nodiscard]] static auto from_file(std::string_view path, ParseMode mode = ParseMode::Auto) -> Result;
 
 	/// \brief Obtain a Json representing an empty Array value.
 	[[nodiscard]] static auto empty_array() -> Json const&;

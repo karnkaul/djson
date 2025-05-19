@@ -508,10 +508,10 @@ auto Json::operator=(Json const& other) -> Json& {
 
 auto Json::parse(std::string_view const text, ParseMode const mode) -> Result { return detail::Parser{text, mode}.parse(); }
 
-auto Json::from_file(std::string_view const path) -> Result {
+auto Json::from_file(std::string_view const path, ParseMode const mode) -> Result {
 	auto text = std::string{};
 	if (!file_to_string(path, text)) { return std::unexpected(Error{.type = Error::Type::IoError}); }
-	return parse(text);
+	return parse(text, mode);
 }
 
 auto Json::empty_array() -> Json const& {
