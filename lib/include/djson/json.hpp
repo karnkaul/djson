@@ -58,6 +58,16 @@ struct SerializeOptions {
 	SerializeFlags flags{serialize_flags_v};
 };
 
+/// \brief Parse mode.
+enum class ParseMode : std::int8_t {
+	/// \brief Automatic: Strict unless first line specifies JSONC mode.
+	Auto,
+	/// \brief Core JSON only.
+	Strict,
+	/// \brief Allow JSONC extensions.
+	Jsonc,
+};
+
 namespace detail {
 struct Value;
 class Parser;
@@ -86,12 +96,14 @@ class Json {
 
 	/// \brief Parse JSON text.
 	/// \param text Input JSON text.
+	/// \param mode Parse mode.
 	/// \returns Json if successful, else Error.
-	[[nodiscard]] static auto parse(std::string_view text) -> Result;
+	[[nodiscard]] static auto parse(std::string_view text, ParseMode mode = ParseMode::Auto) -> Result;
 	/// \brief Parse JSON from a file.
 	/// \param path Path to JSON file.
+	/// \param mode Parse mode.
 	/// \returns Json if successful, else Error.
-	[[nodiscard]] static auto from_file(std::string_view path) -> Result;
+	[[nodiscard]] static auto from_file(std::string_view path, ParseMode mode = ParseMode::Auto) -> Result;
 
 	/// \brief Obtain a Json representing an empty Array value.
 	[[nodiscard]] static auto empty_array() -> Json const&;

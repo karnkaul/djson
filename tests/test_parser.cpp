@@ -10,15 +10,15 @@ using namespace dj;
 
 using ErrType = Error::Type;
 
-[[nodiscard]] auto expect_json(std::string_view const text) {
-	auto parser = detail::Parser{text};
+[[nodiscard]] auto expect_json(std::string_view const text, ParseMode const mode = ParseMode::Auto) {
+	auto parser = detail::Parser{text, mode};
 	auto result = parser.parse();
 	ASSERT(result);
 	return *result;
 }
 
-[[nodiscard]] auto expect_error(std::string_view const text) {
-	auto parser = detail::Parser{text};
+[[nodiscard]] auto expect_error(std::string_view const text, ParseMode const mode = ParseMode::Auto) {
+	auto parser = detail::Parser{text, mode};
 	auto result = parser.parse();
 	ASSERT(!result);
 	return result.error();
@@ -82,7 +82,10 @@ TEST(parser_string) {
 	EXPECT(json.is_string());
 	EXPECT(json.as_string_view().empty());
 
-	json = expect_json(R"("hello world")");
+	json = expect_json(R"("hello world"
+// comment
+)",
+					   ParseMode::Jsonc);
 	EXPECT(json.is_string());
 	EXPECT(json.as<std::string_view>() == "hello world");
 
@@ -128,6 +131,25 @@ TEST(parser_object) {
 	EXPECT(json["pi"].as<double>() == 3.14);
 }
 
+TEST(parser_jsonc) {
+	auto json = expect_json(R"(
+// -*- jsonc -*-
+{
+  "foo": "bar",
+}
+)");
+	EXPECT(json.is_object());
+	auto const& foo = json["foo"];
+	EXPECT(foo.is_string());
+	EXPECT(foo.as_string_view() == "bar");
+
+	auto error = expect_error(R"({"foo": "bar",})");
+	EXPECT(error.type == ErrType::MissingKey);
+
+	error = expect_error(R"(["foo",])");
+	EXPECT(error.type == ErrType::UnexpectedToken);
+}
+
 TEST(parser_unrecognized_token) {
 	auto error = expect_error(R"([ true, 42, $ ])");
 	EXPECT(error.type == ErrType::UnrecognizedToken);
@@ -149,6 +171,17 @@ TEST(parser_unexpected_token) {
 	EXPECT(error.type == ErrType::UnexpectedToken);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 4);
 	EXPECT(error.token == "true");
+	std::println("{}", to_string(error));
+}
+
+TEST(parser_unexpected_comment) {
+	auto error = expect_error(R"(	42 
+// unexpected comment
+true)",
+							  ParseMode::Strict);
+	EXPECT(error.type == ErrType::UnexpectedComment);
+	EXPECT(error.src_loc.line == 2 && error.src_loc.column == 1);
+	EXPECT(error.token == "// unexpected comment");
 	std::println("{}", to_string(error));
 }
 

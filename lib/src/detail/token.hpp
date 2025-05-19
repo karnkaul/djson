@@ -22,9 +22,13 @@ struct Number {
 struct String {
 	std::string_view escaped{};
 };
+
+struct Comment {
+	std::string_view text{};
+};
 } // namespace token
 
-using TokenType = std::variant<token::Eof, token::Operator, token::String, token::Number>;
+using TokenType = std::variant<token::Eof, token::Operator, token::String, token::Number, token::Comment>;
 
 struct Token {
 	using Type = TokenType;

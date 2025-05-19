@@ -2,6 +2,7 @@
 
 ## Features
 
+- JSONC parse mode
 - Copiable `Json` objects
 - Default construction (representing `null`) is "free"
 - `as_string_view()`
@@ -17,6 +18,36 @@
 - Escaped unicode (eg `\u1F604`) not currently supported
 
 ## Usage
+
+### JSONC
+
+`dj::ParseMode` controls whether JSONC features are accepted or rejected during parsing:
+
+- Single-line comments: `//`
+- Multi-line comments: `/* ... */`
+- Trailing commans: `[1,2,]`
+
+There are three parse modes available:
+
+- `dj::ParseMode::Strict`: reject any JSONC extensions as parse errors
+- `dj::ParseMode::Jsonc`: allow JSONC extensions
+- `dj::ParseMode::Auto` (default): infer mode from input
+
+`dj::ParseMode::Auto` looks for a mode line at the start of the string, per [the spec](https://jsonc.org/):
+
+```jsonc
+// -*- mode: jsonc -*-
+```
+
+Or
+
+```jsonc
+// -*- jsonc -*-
+```
+
+If found, the mode is set to `Jsonc`, else `Strict`.
+
+`dj::Json::parse()` and `dj::Json::from_file()` accept a `dj::ParseMode` parameter, defaulted to `dj::ParseMode::Auto`.
 
 ### Input
 

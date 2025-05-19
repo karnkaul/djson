@@ -18,11 +18,13 @@ constexpr auto error_type_str_v = std::array{
 	"Invalid number"sv,
 	"Invalid escape"sv,
 	"Unexpected token"sv,
+	"Unexpected comment"sv,
 	"Unexpected end of file"sv,
 	"Missing key"sv,
 	"Missing colon (':')"sv,
 	"Missing closing brace ('}')"sv,
 	"Missing closing square bracket (']')"sv,
+	"Missing end comment ('*/')"sv,
 	"I/O error"sv,
 	"Unsupported feature"sv,
 };
@@ -52,6 +54,7 @@ namespace {
 	switch (type) {
 	case ScanError::Type::MissingClosingQuote: return Error::Type::MissingClosingQuote;
 	case ScanError::Type::UnrecognizedToken: return Error::Type::UnrecognizedToken;
+	case ScanError::Type::MissingEndComment: return Error::Type::MissingEndComment;
 	default: return Error::Type::Unknown;
 	}
 }
@@ -122,11 +125,11 @@ auto Parser::make_json(Value::Payload payload) -> Json {
 	return ret;
 }
 
-Parser::Parser(std::string_view const text) : m_scanner(text) {}
+Parser::Parser(std::string_view const text, ParseMode const mode) : m_mode(mode), m_scanner(text) {}
 
 auto Parser::parse() -> Result {
 	try {
-		advance();
+		check_jsonc_header();
 		if (m_current.is<token::Eof>()) { return null_json_v; }
 
 		auto ret = parse_value();
@@ -137,10 +140,31 @@ auto Parser::parse() -> Result {
 	return null_json_v;
 }
 
-void Parser::advance() {
+auto Parser::next_token() -> Token {
 	auto scan_result = m_scanner.next();
 	if (!scan_result) { throw to_parse_error(scan_result.error()); }
-	m_current = *scan_result;
+	return *scan_result;
+}
+
+auto Parser::next_non_comment() -> Token {
+	auto const is_comment = [this](Token const& token) {
+		if (!token.is<token::Comment>()) { return false; }
+		handle_comment(token);
+		return true;
+	};
+
+	auto ret = Token{};
+	do { ret = next_token(); } while (is_comment(ret));
+	return ret;
+}
+
+void Parser::handle_comment(Token const& token) const {
+	if (m_mode == ParseMode::Strict) { throw make_error(token, Error::Type::UnexpectedComment); }
+}
+
+void Parser::advance() {
+	m_current = m_next;
+	m_next = next_non_comment();
 }
 
 void Parser::consume(token::Operator const expected, Error::Type const on_error) {
@@ -148,19 +172,15 @@ void Parser::consume(token::Operator const expected, Error::Type const on_error)
 	advance();
 }
 
-auto Parser::consume_if(token::Operator const expected) -> bool {
-	if (!m_current.is_operator(expected)) { return false; }
-	advance();
-	return true;
-}
-
-auto Parser::make_error(Error::Type type) const -> Error {
+auto Parser::make_error(Token const token, Error::Type const type) -> Error {
 	return Error{
 		.type = type,
-		.token = std::string{m_current.lexeme},
-		.src_loc = m_current.src_loc,
+		.token = std::string{token.lexeme},
+		.src_loc = token.src_loc,
 	};
 }
+
+auto Parser::make_error(Error::Type const type) const -> Error { return make_error(m_current, type); }
 
 auto Parser::parse_value() -> Json {
 	if (m_current.is<token::Eof>()) { throw make_error(Error::Type::UnexpectedEof); }
@@ -211,12 +231,23 @@ auto Parser::make_string(token::String const in) -> Json {
 	return make_json(std::move(ret));
 }
 
+auto Parser::iterate_unless(token::Operator const op) -> bool {
+	if (!m_current.is_operator(token::Operator::Comma)) { return false; }
+	advance();
+	if (m_mode == ParseMode::Strict) {
+		// require more content after ','
+		return true;
+	}
+	if (m_current.is_operator(op)) { return false; }
+	return true;
+}
+
 auto Parser::make_array() -> Json {
 	assert(m_current.is_operator(token::Operator::SquareLeft));
 	auto ret = Array{};
 	advance();
 	if (!m_current.is_operator(token::Operator::SquareRight)) {
-		do { ret.members.push_back(parse_value()); } while (consume_if(token::Operator::Comma));
+		do { ret.members.push_back(parse_value()); } while (iterate_unless(token::Operator::SquareRight));
 	}
 	consume(token::Operator::SquareRight, Error::Type::MissingBracket);
 	return make_json(std::move(ret));
@@ -232,7 +263,7 @@ auto Parser::make_object() -> Json {
 			consume(token::Operator::Colon, Error::Type::MissingColon);
 			auto value = parse_value();
 			ret.members.insert_or_assign(std::move(key), std::move(value));
-		} while (consume_if(token::Operator::Comma));
+		} while (iterate_unless(token::Operator::BraceRight));
 	}
 	consume(token::Operator::BraceRight, Error::Type::MissingBrace);
 	return make_json(std::move(ret));
@@ -252,6 +283,32 @@ auto Parser::make_key() -> std::string {
 	auto ret = unescape_string(*string);
 	advance();
 	return ret;
+}
+
+void Parser::check_jsonc_header() {
+	auto const token = next_token();
+	if (!token.is<token::Comment>()) {
+		if (m_mode == ParseMode::Auto) { m_mode = ParseMode::Strict; }
+		m_current = token;
+		m_next = next_non_comment();
+		return;
+	}
+
+	handle_comment(token);
+
+	if (m_mode == ParseMode::Auto) {
+		static constexpr auto jsonc_headers_v = std::array{
+			"// -*- mode: jsonc -*-"sv,
+			"// -*- jsonc -*-"sv,
+		};
+		if (std::ranges::find(jsonc_headers_v, token.lexeme) != jsonc_headers_v.end()) {
+			m_mode = ParseMode::Jsonc;
+		} else {
+			m_mode = ParseMode::Strict;
+		}
+	}
+	m_current = next_non_comment();
+	m_next = next_non_comment();
 }
 } // namespace dj::detail
 
@@ -449,12 +506,12 @@ auto Json::operator=(Json const& other) -> Json& {
 	return *this;
 }
 
-auto Json::parse(std::string_view const text) -> Result { return detail::Parser{text}.parse(); }
+auto Json::parse(std::string_view const text, ParseMode const mode) -> Result { return detail::Parser{text, mode}.parse(); }
 
-auto Json::from_file(std::string_view const path) -> Result {
+auto Json::from_file(std::string_view const path, ParseMode const mode) -> Result {
 	auto text = std::string{};
 	if (!file_to_string(path, text)) { return std::unexpected(Error{.type = Error::Type::IoError}); }
-	return parse(text);
+	return parse(text, mode);
 }
 
 auto Json::empty_array() -> Json const& {
