@@ -8,15 +8,18 @@ class Parser {
   public:
 	[[nodiscard]] static auto make_json(Value::Payload payload) -> Json;
 
-	explicit Parser(std::string_view text, ParseFlags flags);
+	explicit Parser(std::string_view text, ParseMode mode);
 
 	[[nodiscard]] auto parse() -> Result;
 
   private:
+	[[nodiscard]] auto next_token() -> Token;
+	[[nodiscard]] auto next_non_comment() -> Token;
+	void handle_comment(Token const& token) const;
 	void advance();
 	void consume(token::Operator expected, Error::Type on_error);
-	[[nodiscard]] auto consume_if(token::Operator expected) -> bool;
 
+	[[nodiscard]] static auto make_error(Token token, Error::Type type) -> Error;
 	[[nodiscard]] auto make_error(Error::Type type) const -> Error;
 
 	[[nodiscard]] auto parse_value() -> Json;
@@ -26,15 +29,19 @@ class Parser {
 	[[nodiscard]] auto make_number(token::Number in) -> Json;
 	[[nodiscard]] auto make_string(token::String in) -> Json;
 
+	[[nodiscard]] auto iterate_unless(token::Operator op) -> bool;
 	[[nodiscard]] auto make_array() -> Json;
 	[[nodiscard]] auto make_object() -> Json;
 
 	[[nodiscard]] auto unescape_string(token::String in) const -> std::string;
 	[[nodiscard]] auto make_key() -> std::string;
 
-	bool m_no_comments{};
+	void check_jsonc_header();
+
+	ParseMode m_mode{ParseMode::Auto};
 
 	Scanner m_scanner;
 	Token m_current{};
+	Token m_next{};
 };
 } // namespace dj::detail
