@@ -643,7 +643,7 @@ auto Json::operator[](std::size_t const index) const -> Json const& {
 auto Json::operator[](std::size_t const index) -> Json& {
 	ensure_impl();
 	auto& array = m_value->morph<detail::Array>();
-	if (index >= array.members.size()) { array.members.resize(index); }
+	if (index >= array.members.size()) { array.members.resize(index + 1); }
 	return array.members.at(index);
 }
 
