@@ -425,8 +425,9 @@ struct Json::Serializer {
 			return;
 		}
 
+		auto const sort_keys = is_set(Flag::SortKeys) && object.members.size() > 1;
 		auto sorted_keys = std::vector<std::string_view>{};
-		if (is_set(Flag::SortKeys)) {
+		if (sort_keys) {
 			sorted_keys.reserve(object.members.size());
 			for (auto const& [key, _] : object.members) { sorted_keys.push_back(key); }
 			std::ranges::sort(sorted_keys);
@@ -435,7 +436,7 @@ struct Json::Serializer {
 		m_ret.push_back('{');
 		++m_indents;
 
-		if (is_set(Flag::SortKeys)) {
+		if (sort_keys) {
 			for (auto const key : sorted_keys) {
 				auto const it = object.members.find(key);
 				assert(it != object.members.end());
