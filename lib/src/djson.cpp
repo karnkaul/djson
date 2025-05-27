@@ -667,8 +667,7 @@ auto dj::make_escaped(std::string_view const text) -> std::string {
 	for (char const c : text) {
 		switch (c) {
 		case '\"':
-		case '\\':
-		case '/': ret.push_back('\\'); break;
+		case '\\': ret.push_back('\\'); break;
 		case '\t': ret.append("\\t"); continue;
 		case '\n': ret.append("\\n"); continue;
 		case '\r': ret.append("\\r"); continue;
