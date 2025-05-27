@@ -425,18 +425,19 @@ struct Json::Serializer {
 			return;
 		}
 
-		if (is_set(Flag::SortKeys)) {
-			m_sorted_keys.clear();
-			m_sorted_keys.reserve(object.members.size());
-			for (auto const& [key, _] : object.members) { m_sorted_keys.push_back(key); }
-			std::ranges::sort(m_sorted_keys);
+		auto const sort_keys = is_set(Flag::SortKeys) && object.members.size() > 1;
+		auto sorted_keys = std::vector<std::string_view>{};
+		if (sort_keys) {
+			sorted_keys.reserve(object.members.size());
+			for (auto const& [key, _] : object.members) { sorted_keys.push_back(key); }
+			std::ranges::sort(sorted_keys);
 		}
 
 		m_ret.push_back('{');
 		++m_indents;
 
-		if (is_set(Flag::SortKeys)) {
-			for (auto const key : m_sorted_keys) {
+		if (sort_keys) {
+			for (auto const key : sorted_keys) {
 				auto const it = object.members.find(key);
 				assert(it != object.members.end());
 				subprocess_object(key, it->second);
@@ -484,7 +485,6 @@ struct Json::Serializer {
 
 	std::string m_ret{};
 	std::uint8_t m_indents{};
-	std::vector<std::string_view> m_sorted_keys{};
 };
 
 void Json::Deleter::operator()(detail::Value* ptr) const noexcept { std::default_delete<detail::Value>{}(ptr); }
@@ -643,7 +643,7 @@ auto Json::operator[](std::size_t const index) const -> Json const& {
 auto Json::operator[](std::size_t const index) -> Json& {
 	ensure_impl();
 	auto& array = m_value->morph<detail::Array>();
-	if (index >= array.members.size()) { array.members.resize(index); }
+	if (index >= array.members.size()) { array.members.resize(index + 1); }
 	return array.members.at(index);
 }
 
@@ -668,8 +668,7 @@ auto dj::make_escaped(std::string_view const text) -> std::string {
 	for (char const c : text) {
 		switch (c) {
 		case '\"':
-		case '\\':
-		case '/': ret.push_back('\\'); break;
+		case '\\': ret.push_back('\\'); break;
 		case '\t': ret.append("\\t"); continue;
 		case '\n': ret.append("\\n"); continue;
 		case '\r': ret.append("\\r"); continue;

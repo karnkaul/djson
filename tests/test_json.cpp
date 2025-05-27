@@ -77,6 +77,7 @@ TEST(json_serialize) {
 	EXPECT(serialized == expected_v);
 	std::print("{}", serialized);
 }
+
 namespace foo {
 struct Item {
 	std::string name{};
@@ -106,5 +107,17 @@ TEST(json_customize) {
 	auto dst = foo::Item{};
 	from_json(json, dst);
 	EXPECT(src == dst);
+}
+
+TEST(json_oob) {
+	auto json = dj::Json{};
+	json[0] = 42;
+	auto arr = json.as_array();
+	ASSERT(arr.size() == 1);
+	EXPECT(arr[0].as<int>() == 42);
+	json[1] = -5;
+	arr = json.as_array();
+	ASSERT(arr.size() == 2);
+	EXPECT(arr[1].as<int>() == -5);
 }
 } // namespace

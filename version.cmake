@@ -1,1 +1,1 @@
-set(djson_version "3.1.0")
+set(djson_version "3.1.1")
