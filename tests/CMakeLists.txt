@@ -30,3 +30,12 @@ add_test(NAME ${PROJECT_NAME}
   COMMAND ${PROJECT_NAME}-main
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
+
+add_custom_command(TARGET ${PROJECT_NAME}-main POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory
+          "$<TARGET_FILE_DIR:${PROJECT_NAME}-main>/tests/jsons"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory
+          "${CMAKE_CURRENT_SOURCE_DIR}/jsons"
+          "$<TARGET_FILE_DIR:${PROJECT_NAME}-main>/tests/jsons"
+  COMMENT "Copying test jsons to output directory"
+)
