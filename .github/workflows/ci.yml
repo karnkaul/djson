@@ -99,8 +99,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: init
-        run: choco install ninja llvm
       - name: configure
         run: cmake -S . --preset=ninja-clang -B clang
       - name: build debug
