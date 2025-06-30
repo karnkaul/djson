@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: init
-        run: uname -m; sudo apt install -yqq ninja-build
+        run: uname -m
       - name: configure
         run: cmake -S . --preset=ninja-gcc -B build -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14
       - name: build debug
@@ -32,7 +32,7 @@ jobs:
       - name: init
         run: |
             uname -m
-            sudo apt update -yqq && sudo apt install -yqq clang-19 ninja-build
+            sudo apt update -yqq && sudo apt install -yqq clang-19
             sudo update-alternatives --remove-all clang++
             sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 10
       - name: configure
@@ -68,7 +68,7 @@ jobs:
       - name: init
         run: |
             uname -m
-            sudo apt update -yqq && sudo apt install -yqq clang-19 ninja-build
+            sudo apt update -yqq && sudo apt install -yqq clang-19
             sudo update-alternatives --remove-all clang++
             sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 10
       - name: configure
@@ -82,7 +82,7 @@ jobs:
       - name: test release
         run: cd build && ctest -V -C Release
   x64-windows-vs22:
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
       - name: configure
@@ -96,7 +96,7 @@ jobs:
       - name: test release
         run: cd build && ctest -V -C Release
   x64-windows-clang:
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
       - name: configure
