@@ -1,5 +1,3 @@
-project(djson-lib VERSION ${djson_version})
-
 set(version_file "${CMAKE_CURRENT_BINARY_DIR}/include/djson/build_version.hpp")
 configure_file(src/build_version.hpp.in "${version_file}" @ONLY)
 
@@ -27,3 +25,21 @@ target_sources(${PROJECT_NAME} PRIVATE
 )
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
+
+if(DJ_INSTALL)
+  message(STATUS "[djson] setting up install")
+  include(GNUInstallDirs)
+
+  install(
+    TARGETS djson
+    EXPORT djson-targets
+    FILE_SET HEADERS
+  )
+
+  install(
+    EXPORT djson-targets
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/djson"
+    NAMESPACE djson::
+    FILE djson-config.cmake
+  )
+endif()
