@@ -26,6 +26,10 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
 
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  $<$<BOOL:${MINGW}>:stdc++exp>
+)
+
 if(DJ_INSTALL)
   message(STATUS "[djson] setting up install")
   include(GNUInstallDirs)
