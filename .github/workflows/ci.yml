@@ -14,9 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: init
-        run: uname -m
+        run: |
+            uname -m
+            sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 10
       - name: configure
-        run: cmake -S . --preset=ninja-gcc -B build -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14
+        run: cmake -S . --preset=ninja-gcc -B build
       - name: build debug
         run: cmake --build build --config=Debug -- -v
       - name: build release
@@ -25,6 +27,8 @@ jobs:
         run: cd build && ctest -V -C Debug
       - name: test release
         run: cd build && ctest -V -C Release
+      - name: test install
+        run: cmake -DBUILD_DIR=build -DPRESET=ninja-gcc -P install_test/script.cmake
   x64-linux-clang:
     runs-on: ubuntu-latest
     steps:
@@ -32,9 +36,9 @@ jobs:
       - name: init
         run: |
             uname -m
-            sudo apt update -yqq && sudo apt install -yqq clang-19
+            sudo apt update -yqq && sudo apt install -yqq clang-20
             sudo update-alternatives --remove-all clang++
-            sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 10
+            sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 10
       - name: configure
         run: cmake -S . --preset=ninja-clang -B build
       - name: build debug
@@ -45,12 +49,16 @@ jobs:
         run: cd build && ctest -V -C Debug
       - name: test release
         run: cd build && ctest -V -C Release
+      - name: test install
+        run: cmake -DBUILD_DIR=build -DPRESET=ninja-clang -P install_test/script.cmake
   arm64-linux-gcc:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
       - name: init
-        run: uname -m
+        run: |
+            uname -m
+            sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 10
       - name: configure
         run: cmake -S . --preset=ninja-gcc -B build -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14
       - name: build debug
@@ -61,6 +69,8 @@ jobs:
         run: cd build && ctest -V -C Debug
       - name: test release
         run: cd build && ctest -V -C Release
+      - name: test install
+        run: cmake -DBUILD_DIR=build -DPRESET=ninja-gcc -P install_test/script.cmake
   arm64-linux-clang:
     runs-on: ubuntu-24.04-arm
     steps:
@@ -68,9 +78,9 @@ jobs:
       - name: init
         run: |
             uname -m
-            sudo apt update -yqq && sudo apt install -yqq clang-19
+            sudo apt update -yqq && sudo apt install -yqq clang-20
             sudo update-alternatives --remove-all clang++
-            sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 10
+            sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 10
       - name: configure
         run: cmake -S . --preset=ninja-clang -B build
       - name: build debug
@@ -81,6 +91,8 @@ jobs:
         run: cd build && ctest -V -C Debug
       - name: test release
         run: cd build && ctest -V -C Release
+      - name: test install
+        run: cmake -DBUILD_DIR=build -DPRESET=ninja-clang -P install_test/script.cmake
   x64-windows-vs22:
     runs-on: windows-2025
     steps:
@@ -95,17 +107,37 @@ jobs:
         run: cd build && ctest -V -C Debug
       - name: test release
         run: cd build && ctest -V -C Release
+      - name: test install
+        run: cmake -DBUILD_DIR=build -DPRESET=vs22 -P install_test/script.cmake
   x64-windows-clang:
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
       - name: configure
-        run: cmake -S . --preset=ninja-clang -B clang
+        run: cmake -S . --preset=ninja-clang -B build
       - name: build debug
-        run: cmake --build clang --config=Debug -- -v
+        run: cmake --build build --config=Debug -- -v
       - name: build release
-        run: cmake --build clang --config=Release -- -v
+        run: cmake --build build --config=Release -- -v
       - name: test debug
-        run: cd clang && ctest -V -C Debug
+        run: cd build && ctest -V -C Debug
       - name: test release
-        run: cd clang && ctest -V -C Release
+        run: cd build && ctest -V -C Release
+      - name: test install
+        run: cmake -DBUILD_DIR=build -DPRESET=ninja-clang -P install_test/script.cmake
+  x64-mingw-gcc:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - name: configure
+        run: cmake -S . --preset=ninja-gcc -B build
+      - name: build debug
+        run: cmake --build build --config=Debug -- -v
+      - name: build release
+        run: cmake --build build --config=Release -- -v
+      - name: test debug
+        run: cd build && ctest -V -C Debug
+      - name: test release
+        run: cd build && ctest -V -C Release
+      - name: test install
+        run: cmake -DBUILD_DIR=build -DPRESET=ninja-gcc -P install_test/script.cmake

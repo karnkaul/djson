@@ -9,6 +9,7 @@ include(version.cmake)
 
 project(djson VERSION ${djson_version})
 
+option(DJ_INSTALL "Setup djson install" ${PROJECT_IS_TOP_LEVEL})
 option(DJ_BUILD_TESTS "Build djson tests" ${PROJECT_IS_TOP_LEVEL})
 
 configure_file(Doxyfile.in Doxyfile @ONLY)

@@ -71,4 +71,19 @@ TEST(serialize_object) {
 	std::println("serialized: {}", str);
 	EXPECT(str == expected);
 }
+
+TEST(serialize_escape) {
+	std::string_view text = R"(test "quoted" text)";
+	std::string_view expected = R"("test \"quoted\" text")";
+	auto json = Json{};
+	json.set_string(text);
+	auto str = json.serialize(SerializeOptions{.flags = SerializeFlag::NoSpaces});
+	std::println("serialized:\n{}\nexpected:\n{}", str, expected);
+	EXPECT(str == expected);
+
+	auto result = Json::parse(str);
+	ASSERT(result);
+	json = std::move(*result);
+	EXPECT(json.as_string() == text);
+}
 } // namespace

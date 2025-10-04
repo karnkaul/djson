@@ -217,6 +217,7 @@ auto Parser::from_operator(token::Operator const op) -> Json {
 template <typename T>
 auto Parser::make_number(token::Number const in) -> Json {
 	auto value = T{};
+	// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 	auto const* end = in.raw_str.data() + in.raw_str.size();
 	auto const [ptr, ec] = std::from_chars(in.raw_str.data(), end, value);
 	if (ec != std::errc{} || ptr != end) { throw make_error(Error::Type::InvalidNumber); }
