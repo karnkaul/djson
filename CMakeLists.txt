@@ -6,8 +6,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_DEBUG_POSTFIX "-d")
 
 include(version.cmake)
+set(package_name djson)
 
-project(djson VERSION ${djson_version})
+project(${package_name} VERSION ${djson_version})
 
 option(DJ_INSTALL "Setup djson install" ${PROJECT_IS_TOP_LEVEL})
 option(DJ_BUILD_TESTS "Build djson tests" ${PROJECT_IS_TOP_LEVEL})
@@ -15,6 +16,26 @@ option(DJ_BUILD_TESTS "Build djson tests" ${PROJECT_IS_TOP_LEVEL})
 configure_file(Doxyfile.in Doxyfile @ONLY)
 
 add_subdirectory(lib)
+
+if(DJ_INSTALL)
+  message(STATUS "[${package_name}] setting up install")
+  include(GNUInstallDirs)
+
+  set(install_dst "${CMAKE_INSTALL_LIBDIR}/cmake/${package_name}")
+
+  install(
+    TARGETS ${package_name}
+    EXPORT ${package_name}-targets
+    FILE_SET HEADERS
+  )
+
+  install(
+    EXPORT ${package_name}-targets
+    DESTINATION "${install_dst}"
+    NAMESPACE ${package_name}::
+    FILE ${package_name}-config.cmake
+  )
+endif()
 
 if(DJ_BUILD_TESTS)
   enable_testing()

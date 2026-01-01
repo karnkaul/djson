@@ -334,14 +334,29 @@ template <typename T>
 	return std::visit(visitor, in.payload);
 }
 
+[[nodiscard]] auto resolve_symlink(fs::path path) -> fs::path {
+	static constexpr auto max_iters_v{100};
+	auto err = std::error_code{};
+	for (auto iter = 0; iter < max_iters_v; ++iter) {
+		if (fs::is_symlink(path, err)) {
+			path = fs::read_symlink(path, err);
+			if (err != std::errc{}) { return {}; }
+			continue;
+		}
+
+		return path;
+	}
+	return {};
+}
+
 [[nodiscard]] auto file_to_string(std::string_view const path, std::string& out) {
 	if (path.empty()) { return false; }
 
-	auto const fs_path = fs::path{path};
+	auto const real_path = resolve_symlink(path);
 	auto err = std::error_code{};
-	if (fs::is_directory(fs_path, err) || fs::is_symlink(fs_path, err)) { return false; }
+	if (real_path.empty() || fs::is_directory(real_path, err) || fs::is_symlink(real_path)) { return false; }
 
-	auto file = std::ifstream{fs_path, std::ios::binary | std::ios::ate};
+	auto file = std::ifstream{real_path, std::ios::binary | std::ios::ate};
 	if (!file.is_open()) { return false; }
 
 	auto const size = file.tellg();

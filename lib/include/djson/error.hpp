@@ -1,5 +1,5 @@
 #pragma once
-#include <djson/src_loc.hpp>
+#include "djson/src_loc.hpp"
 #include <string>
 
 namespace dj {

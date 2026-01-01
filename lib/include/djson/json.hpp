@@ -1,6 +1,6 @@
 #pragma once
-#include <djson/error.hpp>
-#include <djson/string_table.hpp>
+#include "djson/error.hpp"
+#include "djson/string_table.hpp"
 #include <expected>
 #include <format>
 #include <memory>
