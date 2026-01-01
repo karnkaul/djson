@@ -1,7 +1,7 @@
 #pragma once
+#include "djson/json.hpp"
 #include <detail/scanner.hpp>
 #include <detail/value.hpp>
-#include <djson/json.hpp>
 
 namespace dj::detail {
 class Parser {

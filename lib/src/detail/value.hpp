@@ -1,6 +1,6 @@
 #pragma once
-#include <djson/json.hpp>
-#include <djson/string_table.hpp>
+#include "djson/json.hpp"
+#include "djson/string_table.hpp"
 #include <cstdint>
 #include <string>
 #include <variant>
