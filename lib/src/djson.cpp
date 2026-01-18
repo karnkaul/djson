@@ -409,7 +409,7 @@ struct Json::Serializer {
 		auto const visitor = detail::Visitor{
 			[this](detail::literal::Bool const b) { append("{},", b.value); },
 			[this](detail::literal::Number const n) { std::visit([this](auto const n) { append("{},", n); }, n.payload); },
-			[this](detail::literal::String const& s) { append(R"("{}",)", s.text); },
+			[this](detail::literal::String const& s) { append(R"("{}",)", make_escaped(s.text)); },
 			[this](detail::Array const& a) { process_array(a); },
 			[this](detail::Object const& o) { process_object(o); },
 		};
@@ -589,7 +589,7 @@ void Json::set_boolean(bool const value) {
 
 void Json::set_string(std::string_view const value) {
 	ensure_impl();
-	m_value->payload = detail::literal::String{.text = make_escaped(value)};
+	m_value->payload = detail::literal::String{.text = std::string{value}};
 }
 
 void Json::set_number(std::int64_t const value) {
