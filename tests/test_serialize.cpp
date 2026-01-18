@@ -78,12 +78,16 @@ TEST(serialize_escape) {
 	auto json = Json{};
 	json.set_string(text);
 	auto str = json.serialize(SerializeOptions{.flags = SerializeFlag::NoSpaces});
-	std::println("serialized:\n{}\nexpected:\n{}", str, expected);
+	std::println("serialized:\n {}\nexpected:\n {}", str, expected);
 	EXPECT(str == expected);
 
 	auto result = Json::parse(str);
 	ASSERT(result);
 	json = std::move(*result);
 	EXPECT(json.as_string() == text);
+
+	str = json.serialize({.flags = SerializeFlag::NoSpaces});
+	std::println("reserialized:\n {}", str);
+	EXPECT(str == expected);
 }
 } // namespace
