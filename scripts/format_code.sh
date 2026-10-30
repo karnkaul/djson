@@ -2,12 +2,12 @@
 
 [[ ! $(clang-format --version) ]] && exit 1
 
-if [[ ! -d ./lib ]]; then
+if [[ ! -d ./scripts ]]; then
   echo "Please run script from the project root"
   exit 1
 fi
 
-files=$(find lib -name "*.?pp")
+files=$(find lib tests -name "*.?pp")
 
 if [[ "$files" == "" ]]; then
   echo "-- No source files found"
