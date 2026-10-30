@@ -1,8 +1,5 @@
 #!/bin/bash
 
-sudo apt update -yq
-sudo apt install libbtrfsutil-dev
-
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 10
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 10
 

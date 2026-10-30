@@ -15,14 +15,25 @@ jobs:
     continue-on-error: true
     strategy:
       matrix:
-        platform: [x64-linux, arm64-linux]
-        preset: [ninja-gcc, ninja-clang]
+        platform: [x64-linux, arm64-linux, x64-windows]
+        preset: [ninja-gcc, ninja-clang, vs26]
+        exclude:
+          - platform: x64-linux
+            preset: vs26
+          - platform: arm64-linux
+            preset: vs26
         include:
           - platform: x64-linux
             os: ubuntu-26.04
-            build_args: -- -v
           - platform: arm64-linux
             os: ubuntu-26.04-arm
+          - platform: x64-windows
+            os: windows-latest
+          - preset: vs26
+            build_args: --parallel
+          - preset: ninja-gcc
+            build_args: -- -v
+          - preset: ninja-clang
             build_args: -- -v
     runs-on: ${{ matrix.os }}
     steps:
@@ -30,7 +41,7 @@ jobs:
       - name: init
         run: cmake -P .github/init.cmake
       - name: configure
-        run: cmake -S . --preset=${{ matrix.preset }} -B build
+        run: cmake -S . --preset=${{ matrix.preset }} -B build -DKVF_USE_FREETYPE=OFF -DKCURL_CI_NO_LIBCURL=ON
       - name: build debug
         run: cmake --build build --config=Debug ${{ matrix.build_args }}
       - name: build release
