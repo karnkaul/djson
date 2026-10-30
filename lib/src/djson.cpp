@@ -8,6 +8,8 @@
 // error
 
 namespace dj {
+namespace fs = std::filesystem;
+
 namespace {
 using namespace std::string_view_literals;
 
@@ -34,8 +36,8 @@ static_assert(error_type_str_v.size() == std::size_t(Error::Type::COUNT_));
 } // namespace dj
 
 auto dj::to_string_view(Error::Type const type) -> std::string_view {
-	if (int(type) < 0 || type >= Error::Type::COUNT_) { return dj::error_type_str_v[std::size_t(Error::Type::Unknown)]; }
-	return dj::error_type_str_v.at(std::size_t(type));
+	if (static_cast<int>(type) < 0 || type >= Error::Type::COUNT_) { return dj::error_type_str_v[static_cast<std::size_t>(Error::Type::Unknown)]; }
+	return dj::error_type_str_v.at(static_cast<std::size_t>(type));
 }
 
 auto dj::to_string(Error const& error) -> std::string {
@@ -70,6 +72,22 @@ namespace {
 [[nodiscard]] constexpr auto has_decimal_or_exponent(token::Number const& num) { return num.raw_str.find_first_of(".eE") != std::string_view::npos; }
 
 [[nodiscard]] constexpr auto is_negative(token::Number const& num) { return num.raw_str.starts_with('-'); }
+
+[[nodiscard]] constexpr auto is_uppercase(char const c) { return c >= 'A' && c <= 'Z'; }
+
+void to_lower(std::string& out) {
+	static constexpr auto delta = static_cast<char>('a' - 'A');
+	for (char& c : out) {
+		if (!is_uppercase(c)) { continue; }
+		c += delta;
+	}
+}
+
+[[nodiscard]] auto is_jsonc_extension(fs::path const& path) {
+	auto extension = path.extension().string();
+	to_lower(extension);
+	return extension == ".jsonc";
+}
 
 struct Unescape {
 	[[nodiscard]] auto operator()(std::string& out) -> std::optional<Error::Type> {
@@ -316,8 +334,6 @@ void Parser::check_jsonc_header() {
 // json
 
 namespace dj {
-namespace fs = std::filesystem;
-
 namespace {
 template <JsonType T>
 using value_payload_type = std::variant_alternative_t<std::size_t(T) - 1, detail::Value::Payload>;
@@ -524,9 +540,11 @@ auto Json::operator=(Json const& other) -> Json& {
 
 auto Json::parse(std::string_view const text, ParseMode const mode) -> Result { return detail::Parser{text, mode}.parse(); }
 
-auto Json::from_file(std::string_view const path, ParseMode const mode) -> Result {
+auto Json::from_file(std::string_view const path, ParseMode mode) -> Result {
 	auto text = std::string{};
 	if (!file_to_string(path, text)) { return std::unexpected(Error{.type = Error::Type::IoError}); }
+
+	if (mode == ParseMode::Auto && detail::is_jsonc_extension(path)) { mode = ParseMode::Jsonc; }
 	return parse(text, mode);
 }
 
