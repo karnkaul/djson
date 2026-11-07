@@ -1,5 +1,5 @@
 #include "djson/json.hpp"
-#include <unit_test.hpp>
+#include <klib/unit_test/unit_test.hpp>
 #include <filesystem>
 #include <print>
 #include <vector>
@@ -34,7 +34,7 @@ auto get_paths(fs::path const& dir) -> std::vector<fs::path> {
 	return ret;
 }
 
-TEST(test_files) {
+TEST_CASE(test_files) {
 	auto const jsons_dir = locate_jsons_dir();
 	if (jsons_dir.empty()) {
 		std::println("skipping test: could not locate 'tests/jsons' directory");

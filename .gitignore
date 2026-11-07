@@ -12,4 +12,5 @@ compile_commands.json
 
 /wiki
 /docs
+/ext
 Doxyfile

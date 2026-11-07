@@ -1,5 +1,5 @@
 #include <detail/parser.hpp>
-#include <unit_test.hpp>
+#include <klib/unit_test/unit_test.hpp>
 #include <cmath>
 #include <format>
 #include <limits>
@@ -24,14 +24,14 @@ using ErrType = Error::Type;
 	return result.error();
 }
 
-TEST(parser_null) {
+TEST_CASE(parser_null) {
 	auto json = expect_json("");
 	EXPECT(json.is_null());
 	json = expect_json("null");
 	EXPECT(json.is_null());
 }
 
-TEST(parser_boolean) {
+TEST_CASE(parser_boolean) {
 	auto json = expect_json("true");
 	EXPECT(json.is_boolean());
 	EXPECT(json.as_bool());
@@ -46,7 +46,7 @@ TEST(parser_boolean) {
 	EXPECT(json.as_bool(true));
 }
 
-TEST(parser_number) {
+TEST_CASE(parser_number) {
 	auto json = expect_json("123");
 	EXPECT(json.is_number());
 	EXPECT(json.as<int>() == 123);
@@ -77,7 +77,7 @@ TEST(parser_number) {
 	EXPECT(json.as_i64() == ilarge_v);
 }
 
-TEST(parser_string) {
+TEST_CASE(parser_string) {
 	auto json = expect_json(R"("")");
 	EXPECT(json.is_string());
 	EXPECT(json.as_string_view().empty());
@@ -95,7 +95,7 @@ TEST(parser_string) {
 newline\/")");
 }
 
-TEST(parser_array) {
+TEST_CASE(parser_array) {
 	auto json = expect_json("[]");
 	EXPECT(json.is_array());
 	EXPECT(json.as_array().empty());
@@ -116,7 +116,7 @@ TEST(parser_array) {
 	EXPECT(json[2].as_string_view() == "hi");
 }
 
-TEST(parser_object) {
+TEST_CASE(parser_object) {
 	auto json = expect_json("{}");
 	EXPECT(json.is_object());
 	EXPECT(json.as_object().empty());
@@ -131,7 +131,7 @@ TEST(parser_object) {
 	EXPECT(json["pi"].as<double>() == 3.14);
 }
 
-TEST(parser_jsonc) {
+TEST_CASE(parser_jsonc) {
 	auto json = expect_json(R"(
 // -*- jsonc -*-
 {
@@ -150,7 +150,7 @@ TEST(parser_jsonc) {
 	EXPECT(error.type == ErrType::UnexpectedToken);
 }
 
-TEST(parser_unrecognized_token) {
+TEST_CASE(parser_unrecognized_token) {
 	auto error = expect_error(R"([ true, 42, $ ])");
 	EXPECT(error.type == ErrType::UnrecognizedToken);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 13);
@@ -158,7 +158,7 @@ TEST(parser_unrecognized_token) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_missing_quote) {
+TEST_CASE(parser_missing_quote) {
 	auto error = expect_error(R"("hi)");
 	EXPECT(error.type == ErrType::MissingClosingQuote);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 1);
@@ -166,7 +166,7 @@ TEST(parser_missing_quote) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_unexpected_token) {
+TEST_CASE(parser_unexpected_token) {
 	auto error = expect_error(R"(42 true)");
 	EXPECT(error.type == ErrType::UnexpectedToken);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 4);
@@ -174,7 +174,7 @@ TEST(parser_unexpected_token) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_unexpected_comment) {
+TEST_CASE(parser_unexpected_comment) {
 	auto error = expect_error(R"(	42 
 // unexpected comment
 true)",
@@ -185,7 +185,7 @@ true)",
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_unexpected_eof) {
+TEST_CASE(parser_unexpected_eof) {
 	auto error = expect_error(R"({"foo":)");
 	EXPECT(error.type == ErrType::UnexpectedEof);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 8);
@@ -193,7 +193,7 @@ TEST(parser_unexpected_eof) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_invalid_number) {
+TEST_CASE(parser_invalid_number) {
 	auto error = expect_error(R"(1.2e4e5)");
 	EXPECT(error.type == ErrType::InvalidNumber);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 1);
@@ -201,7 +201,7 @@ TEST(parser_invalid_number) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_invalid_escape) {
+TEST_CASE(parser_invalid_escape) {
 	auto error = expect_error(R"("\xbar")");
 	EXPECT(error.type == ErrType::InvalidEscape);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 1);
@@ -209,7 +209,7 @@ TEST(parser_invalid_escape) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_missing_key) {
+TEST_CASE(parser_missing_key) {
 	auto error = expect_error(R"({42})");
 	EXPECT(error.type == ErrType::MissingKey);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 2);
@@ -217,7 +217,7 @@ TEST(parser_missing_key) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_missing_bracket) {
+TEST_CASE(parser_missing_bracket) {
 	auto error = expect_error(R"([0, 1, 2 {"foo": "bar})");
 	EXPECT(error.type == ErrType::MissingBracket);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 10);
@@ -225,7 +225,7 @@ TEST(parser_missing_bracket) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_missing_colon) {
+TEST_CASE(parser_missing_colon) {
 	auto error = expect_error(R"({"foo" "bar"})");
 	EXPECT(error.type == ErrType::MissingColon);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 8);
@@ -233,7 +233,7 @@ TEST(parser_missing_colon) {
 	std::println("{}", to_string(error));
 }
 
-TEST(parser_missing_brace) {
+TEST_CASE(parser_missing_brace) {
 	auto error = expect_error(R"({"foo": "bar")");
 	EXPECT(error.type == ErrType::MissingBrace);
 	EXPECT(error.src_loc.line == 1 && error.src_loc.column == 14);
