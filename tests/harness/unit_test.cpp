@@ -16,19 +16,26 @@ struct State {
 	}
 };
 
-void check_failed(std::string_view const type, std::string_view const expr, std::string_view const file, int const line) {
+void check_failed(std::string_view const type,
+				  std::string_view const expr,
+				  std::string_view const file,
+				  int const line) {
 	std::println(stderr, "{} failed: '{}' [{}:{}]", type, expr, file, line);
 	State::self().failure = true;
 }
 } // namespace
 
 void test::check_expect(bool const pred, std::string_view const expr, std::string_view const file, int const line) {
-	if (pred) { return; }
+	if (pred) {
+		return;
+	}
 	check_failed("expectation", expr, file, line);
 }
 
 void test::check_assert(bool const pred, std::string_view const expr, std::string_view const file, int const line) {
-	if (pred) { return; }
+	if (pred) {
+		return;
+	}
 	check_failed("assertion", expr, file, line);
 	throw Assert{};
 }

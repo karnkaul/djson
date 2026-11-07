@@ -25,7 +25,8 @@ TEST(serialize_literals) {
 	json.set_number(3.14);
 	EXPECT(json.serialize() == "3.14\n");
 	json.set_string("hello");
-	EXPECT(json.serialize(SerializeOptions{.flags = serialize_flags_v & ~SerializeFlag::TrailingNewline}) == R"("hello")");
+	EXPECT(json.serialize(SerializeOptions{.flags = serialize_flags_v & ~SerializeFlag::TrailingNewline}) ==
+		   R"("hello")");
 
 	auto ea = Json::empty_array().serialize();
 	EXPECT(Json::empty_array().serialize() == "[]\n");

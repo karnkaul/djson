@@ -11,7 +11,9 @@ auto locate_jsons_dir() -> fs::path {
 	auto err = std::error_code{};
 	for (auto dir = fs::current_path(); !dir.empty() && dir.has_parent_path(); dir = dir.parent_path()) {
 		auto const ret = dir / "tests/jsons";
-		if (fs::is_directory(ret, err)) { return ret; }
+		if (fs::is_directory(ret, err)) {
+			return ret;
+		}
 	}
 	return {};
 }
@@ -20,9 +22,13 @@ auto get_paths(fs::path const& dir) -> std::vector<fs::path> {
 	auto ret = std::vector<fs::path>{};
 	auto err = std::error_code{};
 	for (auto const& it : fs::directory_iterator{dir, err}) {
-		if (!it.is_regular_file(err)) { continue; }
+		if (!it.is_regular_file(err)) {
+			continue;
+		}
 		auto const& path = it.path();
-		if (path.extension().generic_string() != ".json") { continue; }
+		if (path.extension().generic_string() != ".json") {
+			continue;
+		}
 		ret.push_back(path);
 	}
 	return ret;
@@ -45,7 +51,9 @@ TEST(test_files) {
 		std::println("-- {}", path.filename().generic_string());
 		auto const result = dj::Json::from_file(path.string());
 		EXPECT(result);
-		if (!result) { continue; }
+		if (!result) {
+			continue;
+		}
 		EXPECT(!result->is_null());
 	}
 }

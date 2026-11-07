@@ -35,6 +35,7 @@ enum class JsonType : std::int8_t { Null, Boolean, Number, String, Array, Object
 
 /// \brief Bit flags for serialization options.
 struct SerializeFlag {
+	// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
 	enum : std::uint8_t {
 		None = 0,
 		/// \brief Sort keys lexicographically.
@@ -47,7 +48,8 @@ struct SerializeFlag {
 };
 using SerializeFlags = decltype(std::to_underlying(SerializeFlag::None));
 /// \brief Default serialize flags.
-inline constexpr auto serialize_flags_v = SerializeFlag::SortKeys | SerializeFlag::TrailingNewline;
+inline constexpr auto serialize_flags_v =
+	static_cast<SerializeFlags>(SerializeFlag::SortKeys | SerializeFlag::TrailingNewline);
 
 /// \brief Serialization options.
 struct SerializeOptions {
@@ -60,7 +62,7 @@ struct SerializeOptions {
 
 /// \brief Parse mode.
 enum class ParseMode : std::int8_t {
-	/// \brief Automatic: Strict unless first line specifies JSONC mode.
+	/// \brief Automatic: Strict unless first line specifies JSONC mode, or file extension is .jsonc.
 	Auto,
 	/// \brief Core JSON only.
 	Strict,
@@ -126,7 +128,9 @@ class Json {
 	[[nodiscard]] auto as_i64(std::int64_t fallback = {}) const -> std::int64_t;
 
 	[[nodiscard]] auto as_string_view(std::string_view fallback = {}) const -> std::string_view;
-	[[nodiscard]] auto as_string(std::string_view const fallback = {}) const -> std::string { return std::string{as_string_view(fallback)}; }
+	[[nodiscard]] auto as_string(std::string_view const fallback = {}) const -> std::string {
+		return std::string{as_string_view(fallback)};
+	}
 
 	template <NumericT Type>
 	[[nodiscard]] auto as_number(Type const fallback = {}) const -> Type {
@@ -207,20 +211,22 @@ class Json {
 	/// \brief Obtain the value associated with the passed key.
 	/// \param key Key to lookup value for.
 	/// \returns Value if type is Object and key exists, else null.
-	[[nodiscard]] auto operator[](std::string_view key) const -> Json const&;
+	[[nodiscard]] auto at(std::string_view key) const -> Json const&;
 	/// \brief Obtain the value associated with the passed key.
 	/// \param key Key to lookup value for.
 	/// \returns Reference to value if key exists, else newly inserted null value.
-	[[nodiscard]] auto operator[](std::string_view key) -> Json&;
-
+	[[nodiscard]] auto at(std::string_view key) -> Json&;
 	/// \brief Obtain the value at the passed index.
 	/// \param index Index to access value for.
 	/// \returns Value at index if type is Array and index is less than size, else null.
-	[[nodiscard]] auto operator[](std::size_t index) const -> Json const&;
+	[[nodiscard]] auto at(std::size_t index) const -> Json const&;
 	/// \brief Obtain the value at the passed index.
 	/// \param index Index to access value for.
 	/// \returns Reference to value at index. Resizes if necessary.
-	[[nodiscard]] auto operator[](std::size_t index) -> Json&;
+	[[nodiscard]] auto at(std::size_t index) -> Json&;
+
+	[[nodiscard]] auto& operator[](this auto&& self, std::string_view const key) { return self.at(key); }
+	[[nodiscard]] auto& operator[](this auto&& self, std::size_t const index) { return self.at(index); }
 
 	/// \brief Serialize value as a string.
 	/// \param options Serialization options.
@@ -250,7 +256,9 @@ class Json {
 	friend class detail::Parser;
 };
 
-[[nodiscard]] inline auto to_string(Json const& json, SerializeOptions const& options = {}) { return json.serialize(options); }
+[[nodiscard]] inline auto to_string(Json const& json, SerializeOptions const& options = {}) {
+	return json.serialize(options);
+}
 
 /// \brief Convert input text to escaped string.
 [[nodiscard]] auto make_escaped(std::string_view text) -> std::string;

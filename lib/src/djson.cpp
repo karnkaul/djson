@@ -36,15 +36,22 @@ static_assert(error_type_str_v.size() == std::size_t(Error::Type::COUNT_));
 } // namespace dj
 
 auto dj::to_string_view(Error::Type const type) -> std::string_view {
-	if (static_cast<int>(type) < 0 || type >= Error::Type::COUNT_) { return dj::error_type_str_v[static_cast<std::size_t>(Error::Type::Unknown)]; }
+	if (static_cast<int>(type) < 0 || type >= Error::Type::COUNT_) {
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
+		return dj::error_type_str_v[static_cast<std::size_t>(Error::Type::Unknown)];
+	}
 	return dj::error_type_str_v.at(static_cast<std::size_t>(type));
 }
 
 auto dj::to_string(Error const& error) -> std::string {
 	auto ret = std::string{to_string_view(error.type)};
-	if (!error.token.empty()) { std::format_to(std::back_inserter(ret), " - '{}'", error.token); }
+	if (!error.token.empty()) {
+		std::format_to(std::back_inserter(ret), " - '{}'", error.token);
+	}
 	auto const src_loc = error.src_loc;
-	if (src_loc.line > 0 && src_loc.column > 0) { std::format_to(std::back_inserter(ret), " [{}:{}]", src_loc.line, src_loc.column); }
+	if (src_loc.line > 0 && src_loc.column > 0) {
+		std::format_to(std::back_inserter(ret), " [{}:{}]", src_loc.line, src_loc.column);
+	}
 	return ret;
 }
 
@@ -69,7 +76,9 @@ namespace {
 	};
 }
 
-[[nodiscard]] constexpr auto has_decimal_or_exponent(token::Number const& num) { return num.raw_str.find_first_of(".eE") != std::string_view::npos; }
+[[nodiscard]] constexpr auto has_decimal_or_exponent(token::Number const& num) {
+	return num.raw_str.find_first_of(".eE") != std::string_view::npos;
+}
 
 [[nodiscard]] constexpr auto is_negative(token::Number const& num) { return num.raw_str.starts_with('-'); }
 
@@ -78,7 +87,9 @@ namespace {
 void to_lower(std::string& out) {
 	static constexpr auto delta = static_cast<char>('a' - 'A');
 	for (char& c : out) {
-		if (!is_uppercase(c)) { continue; }
+		if (!is_uppercase(c)) {
+			continue;
+		}
 		c += delta;
 	}
 }
@@ -93,8 +104,12 @@ struct Unescape {
 	[[nodiscard]] auto operator()(std::string& out) -> std::optional<Error::Type> {
 		for (char const c : in.escaped) {
 			if (escape) {
-				if (c == 'u') { return Error::Type::UnsupportedFeature; }
-				if (!unescape(out, c)) { return Error::Type::InvalidEscape; }
+				if (c == 'u') {
+					return Error::Type::UnsupportedFeature;
+				}
+				if (!unescape(out, c)) {
+					return Error::Type::InvalidEscape;
+				}
 				escape = false;
 				continue;
 			}
@@ -104,7 +119,9 @@ struct Unescape {
 			}
 			out.push_back(c);
 		}
-		if (escape) { return Error::Type::InvalidEscape; }
+		if (escape) {
+			return Error::Type::InvalidEscape;
+		}
 		return {};
 	}
 
@@ -114,7 +131,9 @@ struct Unescape {
 		case '\\': out.push_back('\\'); return true;
 		case '/': out.push_back('/'); return true;
 		case 'b': {
-			if (!out.empty()) { out.pop_back(); }
+			if (!out.empty()) {
+				out.pop_back();
+			}
 			return true;
 		}
 		case 'f': {
@@ -148,36 +167,50 @@ Parser::Parser(std::string_view const text, ParseMode const mode) : m_mode(mode)
 auto Parser::parse() -> Result {
 	try {
 		check_jsonc_header();
-		if (m_current.is<token::Eof>()) { return null_json_v; }
+		if (m_current.is<token::Eof>()) {
+			return null_json_v;
+		}
 
 		auto ret = parse_value();
-		if (!m_current.is<token::Eof>()) { throw make_error(Error::Type::UnexpectedToken); }
+		if (!m_current.is<token::Eof>()) {
+			throw make_error(Error::Type::UnexpectedToken);
+		}
 
 		return ret;
-	} catch (Error const& err) { return std::unexpected(err); }
+	} catch (Error const& err) {
+		return std::unexpected(err);
+	}
 	return null_json_v;
 }
 
 auto Parser::next_token() -> Token {
 	auto scan_result = m_scanner.next();
-	if (!scan_result) { throw to_parse_error(scan_result.error()); }
+	if (!scan_result) {
+		throw to_parse_error(scan_result.error());
+	}
 	return *scan_result;
 }
 
 auto Parser::next_non_comment() -> Token {
 	auto const is_comment = [this](Token const& token) {
-		if (!token.is<token::Comment>()) { return false; }
+		if (!token.is<token::Comment>()) {
+			return false;
+		}
 		handle_comment(token);
 		return true;
 	};
 
 	auto ret = Token{};
-	do { ret = next_token(); } while (is_comment(ret));
+	do {
+		ret = next_token();
+	} while (is_comment(ret));
 	return ret;
 }
 
 void Parser::handle_comment(Token const& token) const {
-	if (m_mode == ParseMode::Strict) { throw make_error(token, Error::Type::UnexpectedComment); }
+	if (m_mode == ParseMode::Strict) {
+		throw make_error(token, Error::Type::UnexpectedComment);
+	}
 }
 
 void Parser::advance() {
@@ -186,7 +219,9 @@ void Parser::advance() {
 }
 
 void Parser::consume(token::Operator const expected, Error::Type const on_error) {
-	if (!m_current.is_operator(expected)) { throw make_error(on_error); }
+	if (!m_current.is_operator(expected)) {
+		throw make_error(on_error);
+	}
 	advance();
 }
 
@@ -201,14 +236,22 @@ auto Parser::make_error(Token const token, Error::Type const type) -> Error {
 auto Parser::make_error(Error::Type const type) const -> Error { return make_error(m_current, type); }
 
 auto Parser::parse_value() -> Json {
-	if (m_current.is<token::Eof>()) { throw make_error(Error::Type::UnexpectedEof); }
-	if (auto const* op = std::get_if<token::Operator>(&m_current.type)) { return from_operator(*op); }
+	if (m_current.is<token::Eof>()) {
+		throw make_error(Error::Type::UnexpectedEof);
+	}
+	if (auto const* op = std::get_if<token::Operator>(&m_current.type)) {
+		return from_operator(*op);
+	}
 	if (auto const* num = std::get_if<token::Number>(&m_current.type)) {
-		if (has_decimal_or_exponent(*num)) { return make_number<double>(*num); }
-		if (is_negative(*num)) { return make_number<std::int64_t>(*num); }
+		if (has_decimal_or_exponent(*num)) {
+			return make_number<double>(*num);
+		}
+		if (is_negative(*num)) {
+			return make_number<std::int64_t>(*num);
+		}
 		return make_number<std::uint64_t>(*num);
 	}
-	assert(m_current.is<token::String>());
+	assert(m_current.is<token::String>()); // NOLINT(misc-static-assert)
 	return make_string(std::get<token::String>(m_current.type));
 }
 
@@ -238,7 +281,9 @@ auto Parser::make_number(token::Number const in) -> Json {
 	// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 	auto const* end = in.raw_str.data() + in.raw_str.size();
 	auto const [ptr, ec] = std::from_chars(in.raw_str.data(), end, value);
-	if (ec != std::errc{} || ptr != end) { throw make_error(Error::Type::InvalidNumber); }
+	if (ec != std::errc{} || ptr != end) {
+		throw make_error(Error::Type::InvalidNumber);
+	}
 	advance();
 	return make_json(literal::Number{.payload = value});
 }
@@ -251,29 +296,35 @@ auto Parser::make_string(token::String const in) -> Json {
 }
 
 auto Parser::iterate_unless(token::Operator const op) -> bool {
-	if (!m_current.is_operator(token::Operator::Comma)) { return false; }
+	if (!m_current.is_operator(token::Operator::Comma)) {
+		return false;
+	}
 	advance();
 	if (m_mode == ParseMode::Strict) {
 		// require more content after ','
 		return true;
 	}
-	if (m_current.is_operator(op)) { return false; }
+	if (m_current.is_operator(op)) {
+		return false;
+	}
 	return true;
 }
 
 auto Parser::make_array() -> Json {
-	assert(m_current.is_operator(token::Operator::SquareLeft));
+	assert(m_current.is_operator(token::Operator::SquareLeft)); // NOLINT(misc-static-assert)
 	auto ret = Array{};
 	advance();
 	if (!m_current.is_operator(token::Operator::SquareRight)) {
-		do { ret.members.push_back(parse_value()); } while (iterate_unless(token::Operator::SquareRight));
+		do {
+			ret.members.push_back(parse_value());
+		} while (iterate_unless(token::Operator::SquareRight));
 	}
 	consume(token::Operator::SquareRight, Error::Type::MissingBracket);
 	return make_json(std::move(ret));
 }
 
 auto Parser::make_object() -> Json {
-	assert(m_current.is_operator(token::Operator::BraceLeft));
+	assert(m_current.is_operator(token::Operator::BraceLeft)); // NOLINT(misc-static-assert)
 	auto ret = Object{};
 	advance();
 	if (!m_current.is_operator(token::Operator::BraceRight)) {
@@ -292,13 +343,17 @@ auto Parser::unescape_string(token::String const in) const -> std::string {
 	auto ret = std::string{};
 	ret.reserve(in.escaped.size());
 	auto const error = Unescape{.in = in}(ret);
-	if (error) { throw make_error(*error); }
+	if (error) {
+		throw make_error(*error);
+	}
 	return ret;
 }
 
 auto Parser::make_key() -> std::string {
 	auto const* string = std::get_if<token::String>(&m_current.type);
-	if (!string) { throw make_error(Error::Type::MissingKey); }
+	if (!string) {
+		throw make_error(Error::Type::MissingKey);
+	}
 	auto ret = unescape_string(*string);
 	advance();
 	return ret;
@@ -307,7 +362,9 @@ auto Parser::make_key() -> std::string {
 void Parser::check_jsonc_header() {
 	auto const token = next_token();
 	if (!token.is<token::Comment>()) {
-		if (m_mode == ParseMode::Auto) { m_mode = ParseMode::Strict; }
+		if (m_mode == ParseMode::Auto) {
+			m_mode = ParseMode::Strict;
+		}
 		m_current = token;
 		m_next = next_non_comment();
 		return;
@@ -346,7 +403,9 @@ static_assert(std::same_as<value_payload_type<JsonType::Object>, detail::Object>
 
 template <typename T>
 [[nodiscard]] constexpr auto to_number(detail::literal::Number const in) {
-	auto const visitor = [](auto const n) { return static_cast<T>(n); };
+	auto const visitor = [](auto const n) {
+		return static_cast<T>(n);
+	};
 	return std::visit(visitor, in.payload);
 }
 
@@ -356,7 +415,9 @@ template <typename T>
 	for (auto iter = 0; iter < max_iters_v; ++iter) {
 		if (fs::is_symlink(path, err)) {
 			path = fs::read_symlink(path, err);
-			if (err != std::errc{}) { return {}; }
+			if (err != std::errc{}) {
+				return {};
+			}
 			continue;
 		}
 
@@ -366,14 +427,20 @@ template <typename T>
 }
 
 [[nodiscard]] auto file_to_string(std::string_view const path, std::string& out) {
-	if (path.empty()) { return false; }
+	if (path.empty()) {
+		return false;
+	}
 
 	auto const real_path = resolve_symlink(path);
 	auto err = std::error_code{};
-	if (real_path.empty() || fs::is_directory(real_path, err) || fs::is_symlink(real_path)) { return false; }
+	if (real_path.empty() || fs::is_directory(real_path, err) || fs::is_symlink(real_path)) {
+		return false;
+	}
 
 	auto file = std::ifstream{real_path, std::ios::binary | std::ios::ate};
-	if (!file.is_open()) { return false; }
+	if (!file.is_open()) {
+		return false;
+	}
 
 	auto const size = file.tellg();
 	file.seekg(0, std::ios::beg);
@@ -382,13 +449,17 @@ template <typename T>
 }
 
 [[nodiscard]] auto string_to_file(std::string_view const path, std::string_view const text) {
-	if (path.empty()) { return false; }
+	if (path.empty()) {
+		return false;
+	}
 
 	auto const fs_path = fs::path{path};
 	auto err = std::error_code{};
 	auto const parent_path = fs_path.parent_path();
 	if (!parent_path.empty() && !fs::is_directory(parent_path, err)) {
-		if (!fs::create_directories(parent_path, err)) { return false; }
+		if (!fs::create_directories(parent_path, err)) {
+			return false;
+		}
 	}
 
 	auto file = std::ofstream{fs_path};
@@ -406,7 +477,9 @@ struct Json::Serializer {
 		if (!m_ret.empty()) {
 			// pop last comma
 			m_ret.pop_back();
-			if (!is_set(Flag::NoSpaces) && is_set(Flag::TrailingNewline)) { m_ret.push_back('\n'); }
+			if (!is_set(Flag::NoSpaces) && is_set(Flag::TrailingNewline)) {
+				m_ret.push_back('\n');
+			}
 		}
 		return std::move(m_ret);
 	}
@@ -414,7 +487,9 @@ struct Json::Serializer {
   private:
 	using Flag = SerializeFlag;
 
-	[[nodiscard]] constexpr auto is_set(SerializeFlags const flag) const -> bool { return (m_options.flags & flag) == flag; }
+	[[nodiscard]] constexpr auto is_set(SerializeFlags const flag) const -> bool {
+		return (m_options.flags & flag) == flag;
+	}
 
 	void process(dj::Json const& json) {
 		if (json.is_null()) {
@@ -423,11 +498,25 @@ struct Json::Serializer {
 		}
 
 		auto const visitor = detail::Visitor{
-			[this](detail::literal::Bool const b) { append("{},", b.value); },
-			[this](detail::literal::Number const n) { std::visit([this](auto const n) { append("{},", n); }, n.payload); },
-			[this](detail::literal::String const& s) { append(R"("{}",)", make_escaped(s.text)); },
-			[this](detail::Array const& a) { process_array(a); },
-			[this](detail::Object const& o) { process_object(o); },
+			[this](detail::literal::Bool const b) {
+				append("{},", b.value);
+			},
+			[this](detail::literal::Number const n) {
+				std::visit(
+					[this](auto const n) {
+						append("{},", n);
+					},
+					n.payload);
+			},
+			[this](detail::literal::String const& s) {
+				append(R"("{}",)", make_escaped(s.text));
+			},
+			[this](detail::Array const& a) {
+				process_array(a);
+			},
+			[this](detail::Object const& o) {
+				process_object(o);
+			},
 		};
 		std::visit(visitor, json.m_value->payload);
 	}
@@ -461,7 +550,9 @@ struct Json::Serializer {
 		auto sorted_keys = std::vector<std::string_view>{};
 		if (sort_keys) {
 			sorted_keys.reserve(object.members.size());
-			for (auto const& [key, _] : object.members) { sorted_keys.push_back(key); }
+			for (auto const& [key, _] : object.members) {
+				sorted_keys.push_back(key);
+			}
 			std::ranges::sort(sorted_keys);
 		}
 
@@ -471,11 +562,13 @@ struct Json::Serializer {
 		if (sort_keys) {
 			for (auto const key : sorted_keys) {
 				auto const it = object.members.find(key);
-				assert(it != object.members.end());
+				assert(it != object.members.end()); // NOLINT(misc-static-assert)
 				subprocess_object(key, it->second);
 			}
 		} else {
-			for (auto const& [key, value] : object.members) { subprocess_object(key, value); }
+			for (auto const& [key, value] : object.members) {
+				subprocess_object(key, value);
+			}
 		}
 
 		// pop last comma
@@ -498,18 +591,26 @@ struct Json::Serializer {
 	}
 
 	void space() {
-		if (is_set(Flag::NoSpaces)) { return; }
+		if (is_set(Flag::NoSpaces)) {
+			return;
+		}
 		m_ret.push_back(' ');
 	}
 
 	void newline() {
-		if (is_set(Flag::NoSpaces)) { return; }
+		if (is_set(Flag::NoSpaces)) {
+			return;
+		}
 		m_ret.append(m_options.newline);
-		for (std::uint8_t i = 0; i < m_indents; ++i) { m_ret.append(m_options.indent); }
+		for (std::uint8_t i = 0; i < m_indents; ++i) {
+			m_ret.append(m_options.indent);
+		}
 	}
 
 	void pre_next_value() {
-		if (m_ret.empty() || is_set(Flag::NoSpaces)) { return; }
+		if (m_ret.empty() || is_set(Flag::NoSpaces)) {
+			return;
+		}
 		newline();
 	}
 
@@ -523,7 +624,9 @@ void Json::Deleter::operator()(detail::Value* ptr) const noexcept { std::default
 
 Json::Json(Json const& other) {
 	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-	if (other.m_value) { m_value.reset(new detail::Value{*other.m_value}); }
+	if (other.m_value) {
+		m_value.reset(new detail::Value{*other.m_value}); // NOLINT(cppcoreguidelines-owning-memory)
+	}
 }
 
 auto Json::operator=(Json const& other) -> Json& {
@@ -538,13 +641,19 @@ auto Json::operator=(Json const& other) -> Json& {
 	return *this;
 }
 
-auto Json::parse(std::string_view const text, ParseMode const mode) -> Result { return detail::Parser{text, mode}.parse(); }
+auto Json::parse(std::string_view const text, ParseMode const mode) -> Result {
+	return detail::Parser{text, mode}.parse();
+}
 
 auto Json::from_file(std::string_view const path, ParseMode mode) -> Result {
 	auto text = std::string{};
-	if (!file_to_string(path, text)) { return std::unexpected(Error{.type = Error::Type::IoError}); }
+	if (!file_to_string(path, text)) {
+		return std::unexpected(Error{.type = Error::Type::IoError});
+	}
 
-	if (mode == ParseMode::Auto && detail::is_jsonc_extension(path)) { mode = ParseMode::Jsonc; }
+	if (mode == ParseMode::Auto && detail::is_jsonc_extension(path)) {
+		mode = ParseMode::Jsonc;
+	}
 	return parse(text, mode);
 }
 
@@ -559,42 +668,58 @@ auto Json::empty_object() -> Json const& {
 }
 
 auto Json::get_type() const -> Type {
-	if (m_value) { return Type(m_value->payload.index() + 1); }
+	if (m_value) {
+		return Type(m_value->payload.index() + 1);
+	}
 	return Type::Null;
 }
 
 auto Json::as_bool(bool const fallback) const -> bool {
-	if (!is_boolean()) { return fallback; }
+	if (!is_boolean()) {
+		return fallback;
+	}
 	return std::get<detail::literal::Bool>(m_value->payload).value;
 }
 
 auto Json::as_double(double const fallback) const -> double {
-	if (!is_number()) { return fallback; }
+	if (!is_number()) {
+		return fallback;
+	}
 	return to_number<double>(std::get<detail::literal::Number>(m_value->payload));
 }
 
 auto Json::as_u64(std::uint64_t const fallback) const -> std::uint64_t {
-	if (!is_number()) { return fallback; }
+	if (!is_number()) {
+		return fallback;
+	}
 	return to_number<std::uint64_t>(std::get<detail::literal::Number>(m_value->payload));
 }
 
 auto Json::as_i64(std::int64_t const fallback) const -> std::int64_t {
-	if (!is_number()) { return fallback; }
+	if (!is_number()) {
+		return fallback;
+	}
 	return to_number<std::int64_t>(std::get<detail::literal::Number>(m_value->payload));
 }
 
 auto Json::as_string_view(std::string_view const fallback) const -> std::string_view {
-	if (!is_string()) { return fallback; }
+	if (!is_string()) {
+		return fallback;
+	}
 	return std::get<detail::literal::String>(m_value->payload).text;
 }
 
 auto Json::as_array() const -> std::span<Json const> {
-	if (!is_array()) { return {}; }
+	if (!is_array()) {
+		return {};
+	}
 	return std::get<detail::Array>(m_value->payload).members;
 }
 
 auto Json::as_object() const -> StringTable<Json> const& {
-	if (!is_object()) { return empty_object_v.members; }
+	if (!is_object()) {
+		return empty_object_v.members;
+	}
 	return std::get<detail::Object>(m_value->payload).members;
 }
 
@@ -646,51 +771,67 @@ auto Json::insert_or_assign(std::string key, Json value) -> Json& {
 	ensure_impl();
 	auto& table = m_value->morph<detail::Object>().members;
 	auto const [it, _] = table.insert_or_assign(std::move(key), std::move(value));
-	assert(it != table.end());
+	assert(it != table.end()); // NOLINT(misc-static-assert)
 	return it->second;
 }
 
-auto Json::operator[](std::string_view const key) const -> Json const& {
-	if (!is_object()) { return detail::null_json_v; }
+auto Json::at(std::string_view const key) const -> Json const& {
+	if (!is_object()) {
+		return detail::null_json_v;
+	}
 	auto const& object = std::get<detail::Object>(m_value->payload);
 	auto const it = object.members.find(key);
-	if (it == object.members.end()) { return detail::null_json_v; }
+	if (it == object.members.end()) {
+		return detail::null_json_v;
+	}
 	return it->second;
 }
 
-auto Json::operator[](std::string_view const key) -> Json& {
+auto Json::at(std::string_view const key) -> Json& {
 	ensure_impl();
 	auto& object = m_value->morph<detail::Object>();
 	auto it = object.members.find(key);
-	if (it == object.members.end()) { it = object.members.insert_or_assign(std::string{key}, Json{}).first; }
-	assert(it != object.members.end());
+	if (it == object.members.end()) {
+		it = object.members.insert_or_assign(std::string{key}, Json{}).first;
+	}
+	assert(it != object.members.end()); // NOLINT(misc-static-assert)
 	return it->second;
 }
 
-auto Json::operator[](std::size_t const index) const -> Json const& {
-	if (!is_array()) { return detail::null_json_v; }
+auto Json::at(std::size_t const index) const -> Json const& {
+	if (!is_array()) {
+		return detail::null_json_v;
+	}
 	auto const& array = std::get<detail::Array>(m_value->payload);
-	if (index >= array.members.size()) { return detail::null_json_v; }
+	if (index >= array.members.size()) {
+		return detail::null_json_v;
+	}
 	return array.members.at(index);
 }
 
-auto Json::operator[](std::size_t const index) -> Json& {
+auto Json::at(std::size_t const index) -> Json& {
 	ensure_impl();
 	auto& array = m_value->morph<detail::Array>();
-	if (index >= array.members.size()) { array.members.resize(index + 1); }
+	if (index >= array.members.size()) {
+		array.members.resize(index + 1);
+	}
 	return array.members.at(index);
 }
 
 auto Json::serialize(SerializeOptions const& options) const -> std::string { return Serializer{options}(*this); }
 
 auto Json::to_file(std::string_view const path, SerializeOptions const& options) const -> bool {
-	if (path.empty()) { return false; }
+	if (path.empty()) {
+		return false;
+	}
 	auto const text = serialize(options);
 	return string_to_file(path, text);
 }
 
 void Json::ensure_impl() {
-	if (m_value) { return; }
+	if (m_value) {
+		return;
+	}
 	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
 	m_value.reset(new detail::Value);
 }

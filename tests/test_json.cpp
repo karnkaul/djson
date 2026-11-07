@@ -34,9 +34,13 @@ TEST(json_input) {
 	EXPECT(foo.as_string_view() == "party");
 	EXPECT(universe.as<int>() == 42);
 
-	for (auto const [index, value] : std::views::enumerate(elements.as_array())) { std::println("[{}]: {}", index, value); }
+	for (auto const [index, value] : std::views::enumerate(elements.as_array())) {
+		std::println("[{}]: {}", index, value);
+	}
 
-	for (auto const& [key, value] : json.as_object()) { std::println(R"("{}": {})", key, value); }
+	for (auto const& [key, value] : json.as_object()) {
+		std::println(R"("{}": {})", key, value);
+	}
 }
 
 TEST(json_output) {
