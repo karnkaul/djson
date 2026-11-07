@@ -37,7 +37,9 @@ struct Value {
 	template <typename T>
 	auto morph() -> T& {
 		auto* ret = std::get_if<T>(&payload);
-		if (!ret) { ret = &payload.emplace<T>(); }
+		if (!ret) {
+			ret = &payload.emplace<T>();
+		}
 		return *ret;
 	}
 

@@ -1,32 +1,35 @@
 project(djson-test)
 
-add_library(${PROJECT_NAME})
-add_library(djson::test ALIAS ${PROJECT_NAME})
+if (NOT TARGET klib::klib-test-main)
+  include(FetchContent)
+  FetchContent_Declare(klib
+    GIT_REPOSITORY https://github.com/karnkaul/klib
+    GIT_TAG v0.6.10
+    GIT_SHALLOW TRUE
+    SOURCE_DIR "${CMAKE_SOURCE_DIR}/ext/klib"
+  )
+  set(KLIB_UNIT_TEST ON)
+  FetchContent_MakeAvailable(klib)
+endif()
+
+add_executable(${PROJECT_NAME})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
   ../lib/src
-  harness
 )
 
-target_sources(${PROJECT_NAME} PRIVATE
-  harness/unit_test.hpp
-  harness/unit_test.cpp
-)
-
-add_executable(${PROJECT_NAME}-main)
-
-target_link_libraries(${PROJECT_NAME}-main PRIVATE
+target_link_libraries(${PROJECT_NAME} PRIVATE
   djson::djson
-  djson::test
+  klib::klib
+  klib::klib-test-main
 )
 
-file(GLOB_RECURSE sources LIST_DIRECTORIES false "*.cpp")
-target_sources(${PROJECT_NAME}-main PRIVATE
-  harness/unit_test_main.cpp
+file(GLOB_RECURSE sources LIST_DIRECTORIES false "test_*.cpp")
+target_sources(${PROJECT_NAME} PRIVATE
   ${sources}
 )
 
 add_test(NAME ${PROJECT_NAME}
-  COMMAND ${PROJECT_NAME}-main
+  COMMAND ${PROJECT_NAME}
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )

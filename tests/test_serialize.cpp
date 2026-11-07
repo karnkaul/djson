@@ -1,5 +1,5 @@
 #include "djson/json.hpp"
-#include <unit_test.hpp>
+#include <klib/unit_test/unit_test.hpp>
 #include <print>
 
 namespace {
@@ -11,7 +11,7 @@ constexpr auto no_spaces_v = [] {
 	return ret;
 }();
 
-TEST(serialize_literals) {
+TEST_CASE(serialize_literals) {
 	auto json = Json{};
 	EXPECT(json.serialize() == "null\n");
 	json.set_null();
@@ -25,14 +25,15 @@ TEST(serialize_literals) {
 	json.set_number(3.14);
 	EXPECT(json.serialize() == "3.14\n");
 	json.set_string("hello");
-	EXPECT(json.serialize(SerializeOptions{.flags = serialize_flags_v & ~SerializeFlag::TrailingNewline}) == R"("hello")");
+	EXPECT(json.serialize(SerializeOptions{.flags = serialize_flags_v & ~SerializeFlag::TrailingNewline}) ==
+		   R"("hello")");
 
 	auto ea = Json::empty_array().serialize();
 	EXPECT(Json::empty_array().serialize() == "[]\n");
 	EXPECT(Json::empty_object().serialize() == "{}\n");
 }
 
-TEST(serialize_array) {
+TEST_CASE(serialize_array) {
 	auto json = Json{};
 	json.push_back(-42);
 	json.push_back(true);
@@ -53,7 +54,7 @@ TEST(serialize_array) {
 	EXPECT(str == expected);
 }
 
-TEST(serialize_object) {
+TEST_CASE(serialize_object) {
 	auto json = Json{};
 	json.insert_or_assign("foo", -42);
 	json.insert_or_assign("bar", "hello");
@@ -72,7 +73,7 @@ TEST(serialize_object) {
 	EXPECT(str == expected);
 }
 
-TEST(serialize_escape) {
+TEST_CASE(serialize_escape) {
 	std::string_view text = R"(test "quoted" text)";
 	std::string_view expected = R"("test \"quoted\" text")";
 	auto json = Json{};

@@ -33,7 +33,7 @@ class Scanner {
 	}
 
 	constexpr void advance() {
-		assert(!m_remain.empty());
+		assert(!m_remain.empty()); // NOLINT(misc-static-assert)
 		if (m_remain.front() == '\n') {
 			++m_src_loc.line;
 			m_src_loc.column = 1;
@@ -44,7 +44,9 @@ class Scanner {
 	}
 
 	constexpr void trim_front() {
-		while (!m_remain.empty() && is_space(m_remain.front())) { advance(); }
+		while (!m_remain.empty() && is_space(m_remain.front())) {
+			advance();
+		}
 	}
 
 	template <typename T>
@@ -55,7 +57,9 @@ class Scanner {
 			.src_loc = m_src_loc,
 		};
 		if (length > 0) {
-			for (std::uint64_t i = 0; i < length; ++i) { advance(); }
+			for (std::uint64_t i = 0; i < length; ++i) {
+				advance();
+			}
 			trim_front();
 		}
 		return ret;
@@ -71,7 +75,9 @@ class Scanner {
 
 	[[nodiscard]] constexpr auto try_operator(Token& out) -> bool {
 		for (auto const [index, op_str] : std::views::enumerate(token::operator_str_v)) {
-			if (!m_remain.starts_with(op_str)) { continue; }
+			if (!m_remain.starts_with(op_str)) {
+				continue;
+			}
 			out = to_token(token::Operator(index), op_str.size());
 			return true;
 		}
@@ -79,7 +85,9 @@ class Scanner {
 	}
 
 	[[nodiscard]] constexpr auto try_number(Token& out) -> bool {
-		if (m_remain.front() != '-' && !is_digit(m_remain.front())) { return false; }
+		if (m_remain.front() != '-' && !is_digit(m_remain.front())) {
+			return false;
+		}
 		auto index = 1uz;
 		for (; index < m_remain.size() && is_part_number(m_remain.at(index)); ++index) {}
 		auto const length = index;
@@ -88,7 +96,7 @@ class Scanner {
 	}
 
 	[[nodiscard]] constexpr auto scan_string() -> std::expected<Token, ScanError> {
-		assert(m_remain.starts_with("\""));
+		assert(m_remain.starts_with('\"')); // NOLINT(misc-static-assert)
 		auto escaped = false;
 		auto index = 1uz;
 		for (; index < m_remain.size(); ++index) {
@@ -101,26 +109,34 @@ class Scanner {
 				escaped = true;
 				continue;
 			}
-			if (ch == '\"') { break; }
+			if (ch == '\"') {
+				break;
+			}
 		}
-		if (index == m_remain.size()) { return std::unexpected(to_scan_error(ScanError::Type::MissingClosingQuote, 1)); }
+		if (index == m_remain.size()) {
+			return std::unexpected(to_scan_error(ScanError::Type::MissingClosingQuote, 1));
+		}
 
 		auto const length = index - 1;
 		return to_token(token::String{.escaped = m_remain.substr(1, length)}, length + 2);
 	}
 
 	[[nodiscard]] constexpr auto scan_line_comment() -> Token {
-		assert(m_remain.starts_with("//"));
+		assert(m_remain.starts_with("//")); // NOLINT(misc-static-assert)
 		auto length = m_remain.find('\n');
-		if (length == std::string_view::npos) { length = m_remain.size(); }
+		if (length == std::string_view::npos) {
+			length = m_remain.size();
+		}
 		return to_token(token::Comment{.text = m_remain.substr(0, length)}, length);
 	}
 
 	[[nodiscard]] constexpr auto scan_multiline_comment() -> std::expected<Token, ScanError> {
-		assert(m_remain.starts_with("/*"));
+		assert(m_remain.starts_with("/*")); // NOLINT(misc-static-assert)
 		auto length = m_remain.find("*/");
-		if (length == std::string_view::npos) { return std::unexpected(to_scan_error(ScanError::Type::MissingEndComment, 2)); }
-		assert(length + 2 <= m_remain.size());
+		if (length == std::string_view::npos) {
+			return std::unexpected(to_scan_error(ScanError::Type::MissingEndComment, 2));
+		}
+		assert(length + 2 <= m_remain.size()); // NOLINT(misc-static-assert)
 		length += 2;
 		return to_token(token::Comment{.text = m_remain.substr(0, length)}, length);
 	}
@@ -131,19 +147,33 @@ class Scanner {
   public:
 	explicit constexpr Scanner(std::string_view const text) : m_remain(text) {
 		trim_front();
-		if (!m_remain.empty()) { m_src_loc = {.line = 1, .column = 1}; }
+		if (!m_remain.empty()) {
+			m_src_loc = {.line = 1, .column = 1};
+		}
 	}
 
 	[[nodiscard]] constexpr auto next() -> std::expected<Token, ScanError> {
-		if (m_remain.empty()) { return to_token(token::Eof{}, 0); }
+		if (m_remain.empty()) {
+			return to_token(token::Eof{}, 0);
+		}
 
 		auto ret = Token{.src_loc = m_src_loc};
 
-		if (try_operator(ret)) { return ret; }
-		if (try_number(ret)) { return ret; }
-		if (m_remain.starts_with("\"")) { return scan_string(); }
-		if (m_remain.starts_with("//")) { return scan_line_comment(); }
-		if (m_remain.starts_with("/*")) { return scan_multiline_comment(); }
+		if (try_operator(ret)) {
+			return ret;
+		}
+		if (try_number(ret)) {
+			return ret;
+		}
+		if (m_remain.starts_with('\"')) {
+			return scan_string();
+		}
+		if (m_remain.starts_with("//")) {
+			return scan_line_comment();
+		}
+		if (m_remain.starts_with("/*")) {
+			return scan_multiline_comment();
+		}
 
 		return std::unexpected(to_scan_error(ScanError::Type::UnrecognizedToken, 1));
 	}

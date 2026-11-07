@@ -11,8 +11,20 @@ using namespace std::string_view_literals;
 namespace token {
 struct Eof {};
 
-enum class Operator : std::int8_t { Null, True, False, Colon, Comma, BraceLeft, BraceRight, SquareLeft, SquareRight, COUNT_ };
-inline constexpr auto operator_str_v = std::array{"null"sv, "true"sv, "false"sv, ":"sv, ","sv, "{"sv, "}"sv, "["sv, "]"sv};
+enum class Operator : std::int8_t {
+	Null,
+	True,
+	False,
+	Colon,
+	Comma,
+	BraceLeft,
+	BraceRight,
+	SquareLeft,
+	SquareRight,
+	COUNT_,
+};
+inline constexpr auto operator_str_v =
+	std::array{"null"sv, "true"sv, "false"sv, ":"sv, ","sv, "{"sv, "}"sv, "["sv, "]"sv};
 static_assert(operator_str_v.size() == std::size_t(Operator::COUNT_));
 
 struct Number {
@@ -39,7 +51,9 @@ struct Token {
 	}
 
 	[[nodiscard]] constexpr auto is_operator(token::Operator const op) const {
-		if (auto const* o = std::get_if<token::Operator>(&type)) { return *o == op; }
+		if (auto const* o = std::get_if<token::Operator>(&type)) {
+			return *o == op;
+		}
 		return false;
 	}
 

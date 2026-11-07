@@ -1,10 +1,10 @@
 #include "djson/json.hpp"
-#include <unit_test.hpp>
+#include <klib/unit_test/unit_test.hpp>
 #include <print>
 #include <ranges>
 
 namespace {
-TEST(json_input) {
+TEST_CASE(json_input) {
 	constexpr auto text = R"({
   "elements": [-2.5e3, "bar"],
   "foo": "party",
@@ -34,12 +34,16 @@ TEST(json_input) {
 	EXPECT(foo.as_string_view() == "party");
 	EXPECT(universe.as<int>() == 42);
 
-	for (auto const [index, value] : std::views::enumerate(elements.as_array())) { std::println("[{}]: {}", index, value); }
+	for (auto const [index, value] : std::views::enumerate(elements.as_array())) {
+		std::println("[{}]: {}", index, value);
+	}
 
-	for (auto const& [key, value] : json.as_object()) { std::println(R"("{}": {})", key, value); }
+	for (auto const& [key, value] : json.as_object()) {
+		std::println(R"("{}": {})", key, value);
+	}
 }
 
-TEST(json_output) {
+TEST_CASE(json_output) {
 	auto json = dj::Json{};
 	EXPECT(json.is_null());
 	json.set_boolean(true);
@@ -58,7 +62,7 @@ TEST(json_output) {
 	EXPECT(json.as_bool());
 }
 
-TEST(json_serialize) {
+TEST_CASE(json_serialize) {
 	auto json = dj::Json::parse(R"({"foo": 42, "bar": [-5, true]})").value();
 	auto const options = dj::SerializeOptions{
 		.indent = "\t",
@@ -97,7 +101,7 @@ void to_json(dj::Json& out, Item const& item) {
 }
 } // namespace foo
 
-TEST(json_customize) {
+TEST_CASE(json_customize) {
 	auto const src = foo::Item{
 		.name = "Orb",
 		.weight = 5,
@@ -109,7 +113,7 @@ TEST(json_customize) {
 	EXPECT(src == dst);
 }
 
-TEST(json_oob) {
+TEST_CASE(json_oob) {
 	auto json = dj::Json{};
 	json[0] = 42;
 	auto arr = json.as_array();
