@@ -1,7 +1,6 @@
-#include "djson/json.hpp"
-#include <klib/unit_test/unit_test.hpp>
-#include <print>
-#include <ranges>
+import djson;
+
+#include "klib/unit_test/unit_test.hpp"
 
 namespace {
 TEST_CASE(json_input) {
@@ -118,10 +117,10 @@ TEST_CASE(json_oob) {
 	json[0] = 42;
 	auto arr = json.as_array();
 	ASSERT(arr.size() == 1);
-	EXPECT(arr[0].as<int>() == 42);
+	EXPECT(arr[0].as<int>() == 42); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 	json[1] = -5;
 	arr = json.as_array();
 	ASSERT(arr.size() == 2);
-	EXPECT(arr[1].as<int>() == -5);
+	EXPECT(arr[1].as<int>() == -5); // NOLINT(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
 }
 } // namespace

@@ -1,78 +1,18 @@
-#pragma once
-#include "djson/error.hpp"
-#include "djson/string_table.hpp"
-#include <expected>
-#include <format>
-#include <memory>
-#include <span>
-#include <string>
-#include <utility>
+export module djson;
 
-namespace dj {
-/// \brief Numeric type.
-template <typename Type>
-concept NumericT = std::integral<Type> || std::floating_point<Type>;
+export import djson.types;
+export import djson.build_version;
 
-/// \brief Stringy type.
-template <typename Type>
-concept StringyT = std::convertible_to<Type, std::string_view>;
-
-/// \brief Type to obtain JSON value as.
-template <typename Type>
-concept GettableT = std::same_as<Type, bool> || NumericT<Type> || StringyT<Type>;
-
-/// \brief Type to set JSON value to.
-template <typename Type>
-concept SettableT = std::same_as<Type, std::nullptr_t> || GettableT<Type>;
-
+export namespace dj {
 class Json;
 
-/// \brief Parse result type.
-using Result = std::expected<Json, Error>;
-
-/// \brief JSON value type.
-enum class JsonType : std::int8_t { Null, Boolean, Number, String, Array, Object, COUNT_ };
-
-/// \brief Bit flags for serialization options.
-struct SerializeFlag {
-	// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
-	enum : std::uint8_t {
-		None = 0,
-		/// \brief Sort keys lexicographically.
-		SortKeys = 1 << 0,
-		/// \brief Append newline at the end. Ignored if NoSpaces is set.
-		TrailingNewline = 1 << 1,
-		/// \brief No whitespace. Ignores TrailingNewLine and other whitespace options.
-		NoSpaces = 1 << 2,
-	};
-};
-using SerializeFlags = decltype(std::to_underlying(SerializeFlag::None));
-/// \brief Default serialize flags.
-inline constexpr auto serialize_flags_v =
-	static_cast<SerializeFlags>(SerializeFlag::SortKeys | SerializeFlag::TrailingNewline);
-
-/// \brief Serialization options.
-struct SerializeOptions {
-	/// \brief Indentation string. Ignored if SerializeFlag::NoSpaces is set.
-	std::string_view indent{"  "};
-	/// \brief Newline string. Ignored if SerializeFlag::NoSpaces is set.
-	std::string_view newline{"\n"};
-	SerializeFlags flags{serialize_flags_v};
-};
-
-/// \brief Parse mode.
-enum class ParseMode : std::int8_t {
-	/// \brief Automatic: Strict unless first line specifies JSONC mode, or file extension is .jsonc.
-	Auto,
-	/// \brief Core JSON only.
-	Strict,
-	/// \brief Allow JSONC extensions.
-	Jsonc,
-};
-
 namespace detail {
-struct Value;
-class Parser;
+class IValue : public Polymorphic {};
+
+class IParser : public Polymorphic {
+  protected:
+	[[nodiscard]] static auto create(std::unique_ptr<IValue> value) -> Json;
+};
 } // namespace detail
 
 /// \brief Library interface, represents a valid JSON value.
@@ -100,12 +40,12 @@ class Json {
 	/// \param text Input JSON text.
 	/// \param mode Parse mode.
 	/// \returns Json if successful, else Error.
-	[[nodiscard]] static auto parse(std::string_view text, ParseMode mode = ParseMode::Auto) -> Result;
+	[[nodiscard]] static auto parse(std::string_view text, ParseMode mode = ParseMode::Auto) -> Result<Json>;
 	/// \brief Parse JSON from a file.
 	/// \param path Path to JSON file.
 	/// \param mode Parse mode.
 	/// \returns Json if successful, else Error.
-	[[nodiscard]] static auto from_file(std::string_view path, ParseMode mode = ParseMode::Auto) -> Result;
+	[[nodiscard]] static auto from_file(std::string_view path, ParseMode mode = ParseMode::Auto) -> Result<Json>;
 
 	/// \brief Obtain a Json representing an empty Array value.
 	[[nodiscard]] static auto empty_array() -> Json const&;
@@ -245,20 +185,14 @@ class Json {
   private:
 	struct Serializer;
 
-	struct Deleter {
-		void operator()(detail::Value* ptr) const noexcept;
-	};
-
 	void ensure_impl();
 
-	std::unique_ptr<detail::Value, Deleter> m_value;
+	std::unique_ptr<detail::IValue> m_value;
 
-	friend class detail::Parser;
+	friend class detail::IParser;
 };
 
-[[nodiscard]] inline auto to_string(Json const& json, SerializeOptions const& options = {}) {
-	return json.serialize(options);
-}
+[[nodiscard]] auto to_string(Json const& json, SerializeOptions const& options = {}) { return json.serialize(options); }
 
 /// \brief Convert input text to escaped string.
 [[nodiscard]] auto make_escaped(std::string_view text) -> std::string;
@@ -284,5 +218,8 @@ struct std::formatter<dj::Json> {
 		return pc.begin();
 	}
 
-	static auto format(dj::Json const& json, std::format_context& fc) -> std::format_context::iterator;
+	static auto format(dj::Json const& json, std::format_context& fc) {
+		auto const str = json.serialize(dj::SerializeOptions{.flags = dj::SerializeFlag::NoSpaces});
+		return format_to(fc.out(), "{}", str);
+	}
 };

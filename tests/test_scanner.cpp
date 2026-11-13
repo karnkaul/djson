@@ -1,4 +1,4 @@
-#include <detail/scanner.hpp>
+import djson.detail;
 
 namespace {
 using namespace dj::detail;

@@ -1,9 +1,6 @@
-#include <detail/parser.hpp>
-#include <klib/unit_test/unit_test.hpp>
-#include <cmath>
-#include <format>
-#include <limits>
-#include <print>
+import djson.detail;
+
+#include "klib/unit_test/unit_test.hpp"
 
 namespace {
 using namespace dj;

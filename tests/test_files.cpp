@@ -1,8 +1,6 @@
-#include "djson/json.hpp"
-#include <klib/unit_test/unit_test.hpp>
-#include <filesystem>
-#include <print>
-#include <vector>
+import djson;
+
+#include "klib/unit_test/unit_test.hpp"
 
 namespace {
 namespace fs = std::filesystem;

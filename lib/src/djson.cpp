@@ -1,86 +1,39 @@
-#include <detail/parser.hpp>
-#include <detail/visitor.hpp>
-#include <charconv>
-#include <filesystem>
-#include <format>
-#include <fstream>
+module;
 
-// error
+#include <cassert>
+
+module djson;
+
+import djson.detail;
 
 namespace dj {
 namespace fs = std::filesystem;
 
-namespace {
-using namespace std::string_view_literals;
-
-constexpr auto error_type_str_v = std::array{
-	"Unknown error"sv,
-	"Unrecognized Token"sv,
-	"Missing closing quote"sv,
-	"Invalid number"sv,
-	"Invalid escape"sv,
-	"Unexpected token"sv,
-	"Unexpected comment"sv,
-	"Unexpected end of file"sv,
-	"Missing key"sv,
-	"Missing colon (':')"sv,
-	"Missing closing brace ('}')"sv,
-	"Missing closing square bracket (']')"sv,
-	"Missing end comment ('*/')"sv,
-	"I/O error"sv,
-	"Unsupported feature"sv,
-};
-
-static_assert(error_type_str_v.size() == std::size_t(Error::Type::COUNT_));
-} // namespace
-} // namespace dj
-
-auto dj::to_string_view(Error::Type const type) -> std::string_view {
-	if (static_cast<int>(type) < 0 || type >= Error::Type::COUNT_) {
-		// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-		return dj::error_type_str_v[static_cast<std::size_t>(Error::Type::Unknown)];
-	}
-	return dj::error_type_str_v.at(static_cast<std::size_t>(type));
-}
-
-auto dj::to_string(Error const& error) -> std::string {
-	auto ret = std::string{to_string_view(error.type)};
-	if (!error.token.empty()) {
-		std::format_to(std::back_inserter(ret), " - '{}'", error.token);
-	}
-	auto const src_loc = error.src_loc;
-	if (src_loc.line > 0 && src_loc.column > 0) {
-		std::format_to(std::back_inserter(ret), " [{}:{}]", src_loc.line, src_loc.column);
-	}
+namespace detail {
+auto IParser::create(std::unique_ptr<IValue> value) -> Json {
+	auto ret = Json{};
+	ret.m_value = std::move(value);
 	return ret;
 }
+} // namespace detail
 
-// parser
-
-namespace dj::detail {
 namespace {
-[[nodiscard]] constexpr auto to_parse_error_type(ScanError::Type const type) {
-	switch (type) {
-	case ScanError::Type::MissingClosingQuote: return Error::Type::MissingClosingQuote;
-	case ScanError::Type::UnrecognizedToken: return Error::Type::UnrecognizedToken;
-	case ScanError::Type::MissingEndComment: return Error::Type::MissingEndComment;
-	default: return Error::Type::Unknown;
-	}
-}
+template <JsonType T>
+using value_payload_type = std::variant_alternative_t<std::size_t(T) - 1, detail::Value::Payload>;
 
-[[nodiscard]] constexpr auto to_parse_error(ScanError const err) {
-	return Error{
-		.type = to_parse_error_type(err.type),
-		.token = std::string{err.token},
-		.src_loc = err.src_loc,
+static_assert(std::same_as<value_payload_type<JsonType::Boolean>, detail::literal::Bool>);
+static_assert(std::same_as<value_payload_type<JsonType::Number>, detail::literal::Number>);
+static_assert(std::same_as<value_payload_type<JsonType::String>, detail::literal::String>);
+static_assert(std::same_as<value_payload_type<JsonType::Array>, detail::Array>);
+static_assert(std::same_as<value_payload_type<JsonType::Object>, detail::Object>);
+
+template <typename T>
+[[nodiscard]] constexpr auto to_number(detail::literal::Number const in) {
+	auto const visitor = [](auto const n) {
+		return static_cast<T>(n);
 	};
+	return std::visit(visitor, in.payload);
 }
-
-[[nodiscard]] constexpr auto has_decimal_or_exponent(token::Number const& num) {
-	return num.raw_str.find_first_of(".eE") != std::string_view::npos;
-}
-
-[[nodiscard]] constexpr auto is_negative(token::Number const& num) { return num.raw_str.starts_with('-'); }
 
 [[nodiscard]] constexpr auto is_uppercase(char const c) { return c >= 'A' && c <= 'Z'; }
 
@@ -98,315 +51,6 @@ void to_lower(std::string& out) {
 	auto extension = path.extension().string();
 	to_lower(extension);
 	return extension == ".jsonc";
-}
-
-struct Unescape {
-	[[nodiscard]] auto operator()(std::string& out) -> std::optional<Error::Type> {
-		for (char const c : in.escaped) {
-			if (escape) {
-				if (c == 'u') {
-					return Error::Type::UnsupportedFeature;
-				}
-				if (!unescape(out, c)) {
-					return Error::Type::InvalidEscape;
-				}
-				escape = false;
-				continue;
-			}
-			if (c == '\\' && !escape) {
-				escape = true;
-				continue;
-			}
-			out.push_back(c);
-		}
-		if (escape) {
-			return Error::Type::InvalidEscape;
-		}
-		return {};
-	}
-
-	[[nodiscard]] static auto unescape(std::string& out, char const escaped) -> bool {
-		switch (escaped) {
-		case '\"': out.push_back('\"'); return true;
-		case '\\': out.push_back('\\'); return true;
-		case '/': out.push_back('/'); return true;
-		case 'b': {
-			if (!out.empty()) {
-				out.pop_back();
-			}
-			return true;
-		}
-		case 'f': {
-			// TODO: WTF is form feed
-			return true;
-		}
-		case 'n': out.push_back('\n'); return true;
-		case 'r': out.push_back('\r'); return true;
-		case 't': out.push_back('\t'); return true;
-		default: return false;
-		}
-	}
-
-	token::String in{};
-
-	bool escape{};
-};
-
-auto const null_json_v = dj::Json{};
-} // namespace
-
-auto Parser::make_json(Value::Payload payload) -> Json {
-	auto ret = Json{};
-	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-	ret.m_value.reset(new detail::Value{.payload = std::move(payload)});
-	return ret;
-}
-
-Parser::Parser(std::string_view const text, ParseMode const mode) : m_mode(mode), m_scanner(text) {}
-
-auto Parser::parse() -> Result {
-	try {
-		check_jsonc_header();
-		if (m_current.is<token::Eof>()) {
-			return null_json_v;
-		}
-
-		auto ret = parse_value();
-		if (!m_current.is<token::Eof>()) {
-			throw make_error(Error::Type::UnexpectedToken);
-		}
-
-		return ret;
-	} catch (Error const& err) {
-		return std::unexpected(err);
-	}
-	return null_json_v;
-}
-
-auto Parser::next_token() -> Token {
-	auto scan_result = m_scanner.next();
-	if (!scan_result) {
-		throw to_parse_error(scan_result.error());
-	}
-	return *scan_result;
-}
-
-auto Parser::next_non_comment() -> Token {
-	auto const is_comment = [this](Token const& token) {
-		if (!token.is<token::Comment>()) {
-			return false;
-		}
-		handle_comment(token);
-		return true;
-	};
-
-	auto ret = Token{};
-	do {
-		ret = next_token();
-	} while (is_comment(ret));
-	return ret;
-}
-
-void Parser::handle_comment(Token const& token) const {
-	if (m_mode == ParseMode::Strict) {
-		throw make_error(token, Error::Type::UnexpectedComment);
-	}
-}
-
-void Parser::advance() {
-	m_current = m_next;
-	m_next = next_non_comment();
-}
-
-void Parser::consume(token::Operator const expected, Error::Type const on_error) {
-	if (!m_current.is_operator(expected)) {
-		throw make_error(on_error);
-	}
-	advance();
-}
-
-auto Parser::make_error(Token const token, Error::Type const type) -> Error {
-	return Error{
-		.type = type,
-		.token = std::string{token.lexeme},
-		.src_loc = token.src_loc,
-	};
-}
-
-auto Parser::make_error(Error::Type const type) const -> Error { return make_error(m_current, type); }
-
-auto Parser::parse_value() -> Json {
-	if (m_current.is<token::Eof>()) {
-		throw make_error(Error::Type::UnexpectedEof);
-	}
-	if (auto const* op = std::get_if<token::Operator>(&m_current.type)) {
-		return from_operator(*op);
-	}
-	if (auto const* num = std::get_if<token::Number>(&m_current.type)) {
-		if (has_decimal_or_exponent(*num)) {
-			return make_number<double>(*num);
-		}
-		if (is_negative(*num)) {
-			return make_number<std::int64_t>(*num);
-		}
-		return make_number<std::uint64_t>(*num);
-	}
-	assert(m_current.is<token::String>()); // NOLINT(misc-static-assert)
-	return make_string(std::get<token::String>(m_current.type));
-}
-
-auto Parser::from_operator(token::Operator const op) -> Json {
-	auto ret = Json{};
-	switch (op) {
-	case token::Operator::Null: ret = null_json_v; break;
-	case token::Operator::True: ret = make_json(literal::Bool{.value = true}); break;
-	case token::Operator::False: ret = make_json(literal::Bool{.value = false}); break;
-	case token::Operator::SquareLeft: return make_array();
-	case token::Operator::BraceLeft: return make_object();
-
-	case token::Operator::Comma:
-	case token::Operator::Colon:
-	case token::Operator::SquareRight:
-	case token::Operator::BraceRight:
-	default: throw make_error(Error::Type::UnexpectedToken);
-	}
-
-	advance();
-	return ret;
-}
-
-template <typename T>
-auto Parser::make_number(token::Number const in) -> Json {
-	auto value = T{};
-	// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-	auto const* end = in.raw_str.data() + in.raw_str.size();
-	auto const [ptr, ec] = std::from_chars(in.raw_str.data(), end, value);
-	if (ec != std::errc{} || ptr != end) {
-		throw make_error(Error::Type::InvalidNumber);
-	}
-	advance();
-	return make_json(literal::Number{.payload = value});
-}
-
-auto Parser::make_string(token::String const in) -> Json {
-	auto ret = detail::literal::String{};
-	ret.text = unescape_string(in);
-	advance();
-	return make_json(std::move(ret));
-}
-
-auto Parser::iterate_unless(token::Operator const op) -> bool {
-	if (!m_current.is_operator(token::Operator::Comma)) {
-		return false;
-	}
-	advance();
-	if (m_mode == ParseMode::Strict) {
-		// require more content after ','
-		return true;
-	}
-	if (m_current.is_operator(op)) {
-		return false;
-	}
-	return true;
-}
-
-auto Parser::make_array() -> Json {
-	assert(m_current.is_operator(token::Operator::SquareLeft)); // NOLINT(misc-static-assert)
-	auto ret = Array{};
-	advance();
-	if (!m_current.is_operator(token::Operator::SquareRight)) {
-		do {
-			ret.members.push_back(parse_value());
-		} while (iterate_unless(token::Operator::SquareRight));
-	}
-	consume(token::Operator::SquareRight, Error::Type::MissingBracket);
-	return make_json(std::move(ret));
-}
-
-auto Parser::make_object() -> Json {
-	assert(m_current.is_operator(token::Operator::BraceLeft)); // NOLINT(misc-static-assert)
-	auto ret = Object{};
-	advance();
-	if (!m_current.is_operator(token::Operator::BraceRight)) {
-		do {
-			auto key = make_key();
-			consume(token::Operator::Colon, Error::Type::MissingColon);
-			auto value = parse_value();
-			ret.members.insert_or_assign(std::move(key), std::move(value));
-		} while (iterate_unless(token::Operator::BraceRight));
-	}
-	consume(token::Operator::BraceRight, Error::Type::MissingBrace);
-	return make_json(std::move(ret));
-}
-
-auto Parser::unescape_string(token::String const in) const -> std::string {
-	auto ret = std::string{};
-	ret.reserve(in.escaped.size());
-	auto const error = Unescape{.in = in}(ret);
-	if (error) {
-		throw make_error(*error);
-	}
-	return ret;
-}
-
-auto Parser::make_key() -> std::string {
-	auto const* string = std::get_if<token::String>(&m_current.type);
-	if (!string) {
-		throw make_error(Error::Type::MissingKey);
-	}
-	auto ret = unescape_string(*string);
-	advance();
-	return ret;
-}
-
-void Parser::check_jsonc_header() {
-	auto const token = next_token();
-	if (!token.is<token::Comment>()) {
-		if (m_mode == ParseMode::Auto) {
-			m_mode = ParseMode::Strict;
-		}
-		m_current = token;
-		m_next = next_non_comment();
-		return;
-	}
-
-	handle_comment(token);
-
-	if (m_mode == ParseMode::Auto) {
-		static constexpr auto jsonc_headers_v = std::array{
-			"// -*- mode: jsonc -*-"sv,
-			"// -*- jsonc -*-"sv,
-		};
-		if (std::ranges::find(jsonc_headers_v, token.lexeme) != jsonc_headers_v.end()) {
-			m_mode = ParseMode::Jsonc;
-		} else {
-			m_mode = ParseMode::Strict;
-		}
-	}
-	m_current = next_non_comment();
-	m_next = next_non_comment();
-}
-} // namespace dj::detail
-
-// json
-
-namespace dj {
-namespace {
-template <JsonType T>
-using value_payload_type = std::variant_alternative_t<std::size_t(T) - 1, detail::Value::Payload>;
-
-static_assert(std::same_as<value_payload_type<JsonType::Boolean>, detail::literal::Bool>);
-static_assert(std::same_as<value_payload_type<JsonType::Number>, detail::literal::Number>);
-static_assert(std::same_as<value_payload_type<JsonType::String>, detail::literal::String>);
-static_assert(std::same_as<value_payload_type<JsonType::Array>, detail::Array>);
-static_assert(std::same_as<value_payload_type<JsonType::Object>, detail::Object>);
-
-template <typename T>
-[[nodiscard]] constexpr auto to_number(detail::literal::Number const in) {
-	auto const visitor = [](auto const n) {
-		return static_cast<T>(n);
-	};
-	return std::visit(visitor, in.payload);
 }
 
 [[nodiscard]] auto resolve_symlink(fs::path path) -> fs::path {
@@ -518,7 +162,7 @@ struct Json::Serializer {
 				process_object(o);
 			},
 		};
-		std::visit(visitor, json.m_value->payload);
+		std::visit(visitor, static_cast<detail::Value&>(*json.m_value).payload);
 	}
 
 	void process_array(detail::Array const& array) {
@@ -620,12 +264,9 @@ struct Json::Serializer {
 	std::uint8_t m_indents{};
 };
 
-void Json::Deleter::operator()(detail::Value* ptr) const noexcept { std::default_delete<detail::Value>{}(ptr); }
-
 Json::Json(Json const& other) {
-	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
 	if (other.m_value) {
-		m_value.reset(new detail::Value{*other.m_value}); // NOLINT(cppcoreguidelines-owning-memory)
+		m_value = std::make_unique<detail::Value>(static_cast<detail::Value&>(*other.m_value));
 	}
 }
 
@@ -635,23 +276,23 @@ auto Json::operator=(Json const& other) -> Json& {
 			m_value.reset();
 		} else {
 			ensure_impl();
-			*m_value = *other.m_value;
+			static_cast<detail::Value&>(*m_value) = static_cast<detail::Value&>(*other.m_value);
 		}
 	}
 	return *this;
 }
 
-auto Json::parse(std::string_view const text, ParseMode const mode) -> Result {
+auto Json::parse(std::string_view const text, ParseMode const mode) -> Result<Json> {
 	return detail::Parser{text, mode}.parse();
 }
 
-auto Json::from_file(std::string_view const path, ParseMode mode) -> Result {
+auto Json::from_file(std::string_view const path, ParseMode mode) -> Result<Json> {
 	auto text = std::string{};
 	if (!file_to_string(path, text)) {
 		return std::unexpected(Error{.type = Error::Type::IoError});
 	}
 
-	if (mode == ParseMode::Auto && detail::is_jsonc_extension(path)) {
+	if (mode == ParseMode::Auto && is_jsonc_extension(path)) {
 		mode = ParseMode::Jsonc;
 	}
 	return parse(text, mode);
@@ -669,7 +310,7 @@ auto Json::empty_object() -> Json const& {
 
 auto Json::get_type() const -> Type {
 	if (m_value) {
-		return Type(m_value->payload.index() + 1);
+		return Type(static_cast<detail::Value&>(*m_value).payload.index() + 1);
 	}
 	return Type::Null;
 }
@@ -678,98 +319,98 @@ auto Json::as_bool(bool const fallback) const -> bool {
 	if (!is_boolean()) {
 		return fallback;
 	}
-	return std::get<detail::literal::Bool>(m_value->payload).value;
+	return std::get<detail::literal::Bool>(static_cast<detail::Value&>(*m_value).payload).value;
 }
 
 auto Json::as_double(double const fallback) const -> double {
 	if (!is_number()) {
 		return fallback;
 	}
-	return to_number<double>(std::get<detail::literal::Number>(m_value->payload));
+	return to_number<double>(std::get<detail::literal::Number>(static_cast<detail::Value&>(*m_value).payload));
 }
 
 auto Json::as_u64(std::uint64_t const fallback) const -> std::uint64_t {
 	if (!is_number()) {
 		return fallback;
 	}
-	return to_number<std::uint64_t>(std::get<detail::literal::Number>(m_value->payload));
+	return to_number<std::uint64_t>(std::get<detail::literal::Number>(static_cast<detail::Value&>(*m_value).payload));
 }
 
 auto Json::as_i64(std::int64_t const fallback) const -> std::int64_t {
 	if (!is_number()) {
 		return fallback;
 	}
-	return to_number<std::int64_t>(std::get<detail::literal::Number>(m_value->payload));
+	return to_number<std::int64_t>(std::get<detail::literal::Number>(static_cast<detail::Value&>(*m_value).payload));
 }
 
 auto Json::as_string_view(std::string_view const fallback) const -> std::string_view {
 	if (!is_string()) {
 		return fallback;
 	}
-	return std::get<detail::literal::String>(m_value->payload).text;
+	return std::get<detail::literal::String>(static_cast<detail::Value&>(*m_value).payload).text;
 }
 
 auto Json::as_array() const -> std::span<Json const> {
 	if (!is_array()) {
 		return {};
 	}
-	return std::get<detail::Array>(m_value->payload).members;
+	return std::get<detail::Array>(static_cast<detail::Value&>(*m_value).payload).members;
 }
 
 auto Json::as_object() const -> StringTable<Json> const& {
 	if (!is_object()) {
 		return empty_object_v.members;
 	}
-	return std::get<detail::Object>(m_value->payload).members;
+	return std::get<detail::Object>(static_cast<detail::Value&>(*m_value).payload).members;
 }
 
 void Json::set_null() { m_value.reset(); }
 
 void Json::set_boolean(bool const value) {
 	ensure_impl();
-	m_value->payload = detail::literal::Bool{.value = value};
+	static_cast<detail::Value&>(*m_value).payload = detail::literal::Bool{.value = value};
 }
 
 void Json::set_string(std::string_view const value) {
 	ensure_impl();
-	m_value->payload = detail::literal::String{.text = std::string{value}};
+	static_cast<detail::Value&>(*m_value).payload = detail::literal::String{.text = std::string{value}};
 }
 
 void Json::set_number(std::int64_t const value) {
 	ensure_impl();
-	m_value->payload = detail::literal::Number{.payload = value};
+	static_cast<detail::Value&>(*m_value).payload = detail::literal::Number{.payload = value};
 }
 
 void Json::set_number(std::uint64_t const value) {
 	ensure_impl();
-	m_value->payload = detail::literal::Number{.payload = value};
+	static_cast<detail::Value&>(*m_value).payload = detail::literal::Number{.payload = value};
 }
 
 void Json::set_number(double const value) {
 	ensure_impl();
-	m_value->payload = detail::literal::Number{.payload = value};
+	static_cast<detail::Value&>(*m_value).payload = detail::literal::Number{.payload = value};
 }
 
 void Json::set_value(Json value) { m_value = std::move(value.m_value); }
 
 void Json::set_array() {
 	ensure_impl();
-	m_value->morph<detail::Array>().members.clear();
+	static_cast<detail::Value&>(*m_value).morph<detail::Array>().members.clear();
 }
 
 void Json::set_object() {
 	ensure_impl();
-	m_value->morph<detail::Object>().members.clear();
+	static_cast<detail::Value&>(*m_value).morph<detail::Object>().members.clear();
 }
 
 auto Json::push_back(Json value) -> Json& {
 	ensure_impl();
-	return m_value->morph<detail::Array>().members.emplace_back(std::move(value));
+	return static_cast<detail::Value&>(*m_value).morph<detail::Array>().members.emplace_back(std::move(value));
 }
 
 auto Json::insert_or_assign(std::string key, Json value) -> Json& {
 	ensure_impl();
-	auto& table = m_value->morph<detail::Object>().members;
+	auto& table = static_cast<detail::Value&>(*m_value).morph<detail::Object>().members;
 	auto const [it, _] = table.insert_or_assign(std::move(key), std::move(value));
 	assert(it != table.end()); // NOLINT(misc-static-assert)
 	return it->second;
@@ -779,7 +420,7 @@ auto Json::at(std::string_view const key) const -> Json const& {
 	if (!is_object()) {
 		return detail::null_json_v;
 	}
-	auto const& object = std::get<detail::Object>(m_value->payload);
+	auto const& object = std::get<detail::Object>(static_cast<detail::Value&>(*m_value).payload);
 	auto const it = object.members.find(key);
 	if (it == object.members.end()) {
 		return detail::null_json_v;
@@ -789,7 +430,7 @@ auto Json::at(std::string_view const key) const -> Json const& {
 
 auto Json::at(std::string_view const key) -> Json& {
 	ensure_impl();
-	auto& object = m_value->morph<detail::Object>();
+	auto& object = static_cast<detail::Value&>(*m_value).morph<detail::Object>();
 	auto it = object.members.find(key);
 	if (it == object.members.end()) {
 		it = object.members.insert_or_assign(std::string{key}, Json{}).first;
@@ -802,7 +443,7 @@ auto Json::at(std::size_t const index) const -> Json const& {
 	if (!is_array()) {
 		return detail::null_json_v;
 	}
-	auto const& array = std::get<detail::Array>(m_value->payload);
+	auto const& array = std::get<detail::Array>(static_cast<detail::Value&>(*m_value).payload);
 	if (index >= array.members.size()) {
 		return detail::null_json_v;
 	}
@@ -811,7 +452,7 @@ auto Json::at(std::size_t const index) const -> Json const& {
 
 auto Json::at(std::size_t const index) -> Json& {
 	ensure_impl();
-	auto& array = m_value->morph<detail::Array>();
+	auto& array = static_cast<detail::Value&>(*m_value).morph<detail::Array>();
 	if (index >= array.members.size()) {
 		array.members.resize(index + 1);
 	}
@@ -852,9 +493,4 @@ auto dj::make_escaped(std::string_view const text) -> std::string {
 		ret.push_back(c);
 	}
 	return ret;
-}
-
-auto std::formatter<dj::Json>::format(dj::Json const& json, std::format_context& fc) -> std::format_context::iterator {
-	auto const str = json.serialize(dj::SerializeOptions{.flags = dj::SerializeFlag::NoSpaces});
-	return std::format_to(fc.out(), "{}", str);
 }

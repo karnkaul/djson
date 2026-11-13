@@ -1,12 +1,86 @@
-#pragma once
-#include <detail/token.hpp>
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <expected>
-#include <ranges>
+module;
 
-namespace dj::detail {
+#include <cassert>
+
+export module djson.detail;
+
+export import djson;
+
+#pragma region common
+export namespace dj::detail {
+using namespace std::string_view_literals;
+
+template <typename... Ts>
+struct Visitor : Ts... {
+	using Ts::operator()...;
+};
+} // namespace dj::detail
+
+#pragma endregion
+
+#pragma region Token
+
+export namespace dj::detail {
+namespace token {
+struct Eof {};
+
+enum class Operator : std::int8_t {
+	Null,
+	True,
+	False,
+	Colon,
+	Comma,
+	BraceLeft,
+	BraceRight,
+	SquareLeft,
+	SquareRight,
+	COUNT_,
+};
+inline constexpr auto operator_str_v =
+	std::array{"null"sv, "true"sv, "false"sv, ":"sv, ","sv, "{"sv, "}"sv, "["sv, "]"sv};
+static_assert(operator_str_v.size() == std::size_t(Operator::COUNT_));
+
+struct Number {
+	std::string_view raw_str{};
+};
+
+struct String {
+	std::string_view escaped{};
+};
+
+struct Comment {
+	std::string_view text{};
+};
+} // namespace token
+
+using TokenType = std::variant<token::Eof, token::Operator, token::String, token::Number, token::Comment>;
+
+struct Token {
+	using Type = TokenType;
+
+	template <typename T>
+	[[nodiscard]] constexpr auto is() const -> bool {
+		return std::holds_alternative<T>(type);
+	}
+
+	[[nodiscard]] constexpr auto is_operator(token::Operator const op) const {
+		if (auto const* o = std::get_if<token::Operator>(&type)) {
+			return *o == op;
+		}
+		return false;
+	}
+
+	Type type{token::Eof{}};
+	std::string_view lexeme{};
+	SrcLoc src_loc{};
+};
+} // namespace dj::detail
+
+#pragma endregion
+
+#pragma region Scanner
+
+export namespace dj::detail {
 struct ScanError {
 	enum class Type : std::int8_t {
 		UnrecognizedToken,
@@ -179,3 +253,102 @@ class Scanner {
 	}
 };
 } // namespace dj::detail
+
+#pragma endregion
+
+#pragma region Value
+
+export namespace dj::detail {
+namespace literal {
+struct Bool {
+	bool value{};
+};
+
+struct Number {
+	using Payload = std::variant<double, std::uint64_t, std::int64_t>;
+
+	Payload payload{};
+};
+
+struct String {
+	std::string text{};
+};
+} // namespace literal
+
+struct Array {
+	std::vector<dj::Json> members{};
+};
+
+struct Object {
+	StringTable<dj::Json> members{};
+};
+
+class Value : public IValue {
+  public:
+	using Payload = std::variant<literal::Bool, literal::Number, literal::String, Array, Object>;
+
+	explicit Value(Payload payload = {}) : payload(std::move(payload)) {}
+
+	template <typename T>
+	auto morph() -> T& {
+		auto* ret = std::get_if<T>(&payload);
+		if (!ret) {
+			ret = &payload.emplace<T>();
+		}
+		return *ret;
+	}
+
+	Payload payload{};
+};
+} // namespace dj::detail
+
+#pragma endregion
+
+#pragma region Parser
+
+export namespace dj::detail {
+auto const null_json_v = dj::Json{};
+
+class Parser : public IParser {
+  public:
+	[[nodiscard]] static auto make_json(Value::Payload payload) -> Json;
+
+	explicit Parser(std::string_view text, ParseMode mode);
+
+	[[nodiscard]] auto parse() -> Result<Json>;
+
+  private:
+	[[nodiscard]] auto next_token() -> Token;
+	[[nodiscard]] auto next_non_comment() -> Token;
+	void handle_comment(Token const& token) const;
+	void advance();
+	void consume(token::Operator expected, Error::Type on_error);
+
+	[[nodiscard]] static auto make_error(Token token, Error::Type type) -> Error;
+	[[nodiscard]] auto make_error(Error::Type type) const -> Error;
+
+	[[nodiscard]] auto parse_value() -> Json;
+
+	[[nodiscard]] auto from_operator(token::Operator op) -> Json;
+	template <typename T>
+	[[nodiscard]] auto make_number(token::Number in) -> Json;
+	[[nodiscard]] auto make_string(token::String in) -> Json;
+
+	[[nodiscard]] auto iterate_unless(token::Operator op) -> bool;
+	[[nodiscard]] auto make_array() -> Json;
+	[[nodiscard]] auto make_object() -> Json;
+
+	[[nodiscard]] auto unescape_string(token::String in) const -> std::string;
+	[[nodiscard]] auto make_key() -> std::string;
+
+	void check_jsonc_header();
+
+	ParseMode m_mode{ParseMode::Auto};
+
+	Scanner m_scanner;
+	Token m_current{};
+	Token m_next{};
+};
+} // namespace dj::detail
+
+#pragma endregion

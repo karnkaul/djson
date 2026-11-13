@@ -1,0 +1,7 @@
+export module djson.build_version;
+
+export import std;
+
+export namespace dj {
+constexpr std::string_view build_version_v{"@PROJECT_VERSION@"};
+} // namespace dj

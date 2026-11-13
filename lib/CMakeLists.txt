@@ -1,27 +1,25 @@
-set(version_file "${CMAKE_CURRENT_BINARY_DIR}/include/djson/build_version.hpp")
-configure_file(src/build_version.hpp.in "${version_file}" @ONLY)
+set(version_module src/build_version.cppm)
+configure_file(private/build_version.cppm.in ${version_module} @ONLY)
 
 add_library(${PROJECT_NAME})
 add_library(djson::djson ALIAS ${PROJECT_NAME})
 
-file(GLOB_RECURSE headers LIST_DIRECTORIES false "include/djson/*.hpp")
-target_sources(${PROJECT_NAME} PUBLIC FILE_SET HEADERS
-  BASE_DIRS include
-  FILES ${headers}
+target_sources(${PROJECT_NAME} PUBLIC FILE_SET CXX_MODULES
+  BASE_DIRS
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  "${CMAKE_CURRENT_BINARY_DIR}"
+
+  FILES
+  public/types.cppm
+  public/djson.cppm
+  private/detail.cppm
+  "${CMAKE_CURRENT_BINARY_DIR}/${version_module}"
 )
 
-target_sources(${PROJECT_NAME} PUBLIC FILE_SET HEADERS
-  BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/include"
-  FILES "${version_file}"
-)
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-  src
-)
-
-file(GLOB_RECURSE sources LIST_DIRECTORIES false "src/*.[hc]pp")
 target_sources(${PROJECT_NAME} PRIVATE
-  ${sources}
+  src/types.cpp
+  src/detail.cpp
+  src/djson.cpp
 )
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)

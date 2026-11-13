@@ -6,6 +6,6 @@ indent_size = 2
 # Optional: git will commit as lf, this will only affect local files
 end_of_line = lf
 
-[*.{hpp,cpp}]
+[*.{hpp,cpp,cppm}]
 indent_style = tab
 indent_size = 4

@@ -1,6 +1,6 @@
-#include "djson/json.hpp"
-#include <klib/unit_test/unit_test.hpp>
-#include <print>
+import djson;
+
+#include "klib/unit_test/unit_test.hpp"
 
 namespace {
 using namespace dj;

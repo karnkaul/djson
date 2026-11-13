@@ -4,7 +4,7 @@ if (NOT TARGET klib::klib-test-main)
   include(FetchContent)
   FetchContent_Declare(klib
     GIT_REPOSITORY https://github.com/karnkaul/klib
-    GIT_TAG v0.6.10
+    GIT_TAG feature/modules
     GIT_SHALLOW TRUE
     SOURCE_DIR "${CMAKE_SOURCE_DIR}/ext/klib"
   )
