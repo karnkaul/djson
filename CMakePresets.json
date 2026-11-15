@@ -22,7 +22,10 @@
       "inherits": "default",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "gcc",
-        "CMAKE_CXX_COMPILER": "g++"
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_CXX_FLAGS_INIT": "-Wall -Wextra -Wpedantic -Wconversion -Werror=return-type",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT": "-Werror",
+        "CMAKE_CXX_FLAGS_RELEASE_INIT": "-Werror"
       }
     },
     {
@@ -31,16 +34,10 @@
       "inherits": "default",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++"
-      }
-    },
-    {
-      "name": "base-msvc",
-      "hidden": true,
-      "inherits": "default",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "cl",
-        "CMAKE_CXX_COMPILER": "cl"
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_FLAGS_INIT": "-Wall -Wextra -Wpedantic -Wconversion -Werror=return-type -Wno-reserved-module-identifier",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT": "-Werror",
+        "CMAKE_CXX_FLAGS_RELEASE_INIT": "-Werror"
       }
     },
     {
@@ -48,35 +45,14 @@
       "displayName": "Ninja GCC",
       "description": "Build configuration using Ninja Multi-config / GCC",
       "inherits": "base-gcc",
-      "binaryDir": "${sourceDir}/out/gcc",
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS_INIT": "-Wall -Wextra -Wpedantic -Wconversion -Werror=return-type",
-        "CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT": "-Werror",
-        "CMAKE_CXX_FLAGS_RELEASE_INIT": "-Werror"
-      }
+      "binaryDir": "${sourceDir}/out/gcc"
     },
     {
       "name": "ninja-clang",
       "displayName": "Ninja Clang",
       "description": "Build configuration using Ninja Multi-config / Clang",
       "inherits": "base-clang",
-      "binaryDir": "${sourceDir}/out/clang",
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS_INIT": "-Wall -Wextra -Wpedantic -Wconversion -Werror=return-type -Wno-reserved-module-identifier",
-        "CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT": "-Werror",
-        "CMAKE_CXX_FLAGS_RELEASE_INIT": "-Werror"
-      }
-    },
-    {
-      "name": "ninja-msvc",
-      "displayName": "Ninja MSVC",
-      "description": "Build configuration using Ninja Multi-config / MSVC",
-      "inherits": "base-msvc",
-      "binaryDir": "${sourceDir}/out/msvc",
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT": "/WX",
-        "CMAKE_CXX_FLAGS_RELEASE_INIT": "/WX"
-      }
+      "binaryDir": "${sourceDir}/out/clang"
     },
     {
       "name": "ninja-ubsan",
@@ -99,16 +75,6 @@
       }
     },
     {
-      "name": "ninja-msvc-asan",
-      "displayName": "Ninja MSVC ASan",
-      "description": "ASan build configuration using Ninja Multi-config",
-      "inherits": "base-msvc",
-      "binaryDir": "${sourceDir}/out/asan",
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS_INIT": "-fsanitize=address"
-      }
-    },
-    {
       "name": "ninja-tsan",
       "displayName": "Ninja TSan",
       "description": "TSan build configuration using Ninja Multi-config",
@@ -117,28 +83,6 @@
       "cacheVariables": {
         "CMAKE_CXX_FLAGS_INIT": "-fsanitize=thread -Wall -Wextra -Wpedantic -Wconversion -Werror=return-type"
       }
-    },
-    {
-      "name": "vs26",
-      "displayName": "Visual Studio 2026",
-      "description": "Build configuration using Visual Studio 18 (2026)",
-      "generator": "Visual Studio 18 2026",
-      "binaryDir": "${sourceDir}/out/vs",
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS_INIT": "/WX"
-      },
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      }
-    },
-    {
-      "name": "vs22",
-      "displayName": "Visual Studio 2022",
-      "description": "Build configuration using Visual Studio 17 (2022)",
-      "generator": "Visual Studio 17 2022",
-      "binaryDir": "${sourceDir}/out/vs22",
-      "inherits": "vs26"
     }
   ],
   "buildPresets": [
@@ -176,16 +120,6 @@
       "name": "Clang RelWithDebInfo",
       "configurePreset": "ninja-clang",
       "configuration": "RelWithDebInfo"
-    },
-    {
-      "name": "MSVC Debug",
-      "configurePreset": "ninja-msvc",
-      "configuration": "Debug"
-    },
-    {
-      "name": "MSVC Release",
-      "configurePreset": "ninja-msvc",
-      "configuration": "Release"
     },
     {
       "name": "UBSan Debug",
@@ -234,18 +168,6 @@
       "name": "Clang RelWithDebInfo",
       "configurePreset": "ninja-clang",
       "configuration": "RelWithDebInfo",
-      "inheritConfigureEnvironment": true
-    },
-    {
-      "name": "MSVC Debug",
-      "configurePreset": "ninja-msvc",
-      "configuration": "Debug",
-      "inheritConfigureEnvironment": true
-    },
-    {
-      "name": "MSVC Release",
-      "configurePreset": "ninja-msvc",
-      "configuration": "Release",
       "inheritConfigureEnvironment": true
     },
     {
