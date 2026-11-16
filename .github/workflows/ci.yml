@@ -2,16 +2,8 @@ name: ci-pr
 on: [pull_request, workflow_dispatch]
 jobs:
   format-check:
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@v6
-      - name: init
-        run: |
-          sudo update-alternatives --remove-all clang-format
-          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-22 10
-      - name: format code
-        run: scripts/format_code.sh
-      - name: check diff
-        run: .github/format_check_diff.sh
+    uses: karnkaul/cpp_workflows/.github/workflows/format_check.yml@v1
+    with:
+      script: scripts/format_code.sh
   ci:
     uses: karnkaul/cpp_workflows/.github/workflows/modules_ci.yml@v1
